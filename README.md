@@ -3,11 +3,17 @@
 ## 背景
 
 コピーしたと思ったのにできてなかった！ペーストしたら意図したコピー内容と違った！！
+
+😡 😡 😡
+
 そんなことありませんか？
+
 ありますよねぇ〜
 
 てなわけで、
+
 クリップボードにコピーしたときにコピー内容が表示されるアプリ
+
 のソースコードです
 
 ## 概要
@@ -30,10 +36,10 @@ open target/release/bundle/osx/clip-show.app
 
 ## Homebrewリポジトリ
 
-https://github.com/somei-san/homebrew-clip-show
+<https://github.com/somei-san/homebrew-clip-show>
 
 [README](https://github.com/somei-san/homebrew-clip-show/README.md)
 
 ## ドキュメント
 
-- Homebrew公開と常駐起動の手順: `docs/homebrew.md`
+- Homebrew公開と常駐起動の手順: `docs/Homebrewで公開する手順.md`
