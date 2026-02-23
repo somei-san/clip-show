@@ -44,4 +44,4 @@ open target/release/bundle/osx/clip-show.app
 
 ## ドキュメント
 
-- Homebrew公開と常駐起動の手順: <https://github.com/somei-san/clip-show/blob/main/docs/Homebrewで公開する手順.md>
+- [Homebrew公開と常駐起動の手順](https://github.com/somei-san/clip-show/blob/main/docs/Homebrewで公開する手順.md)
