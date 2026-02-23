@@ -24,6 +24,7 @@ const HUD_ICON_HEIGHT: f64 = 22.0;
 const HUD_GAP: f64 = 8.0;
 const HUD_CHAR_WIDTH_ESTIMATE: f64 = 9.6;
 const HUD_LINE_HEIGHT_ESTIMATE: f64 = 22.0;
+const HUD_TEXT_MEASURE_HEIGHT: f64 = 10_000.0;
 
 struct AppState {
     last_change_count: isize,
@@ -132,15 +133,8 @@ extern "C" fn poll_pasteboard(this: &AnyObject, _: Sel, _: *mut AnyObject) {
         let () = msg_send![state.label, setStringValue: message];
         let () = msg_send![message, release];
 
-        let (hud_width, hud_height, visual_lines) = hud_size_for_text(&truncated);
-        layout_hud(
-            state.window,
-            state.icon_label,
-            state.label,
-            hud_width,
-            hud_height,
-            visual_lines,
-        );
+        let hud_width = hud_width_for_text(&truncated);
+        layout_hud(state.window, state.icon_label, state.label, hud_width);
         let () = msg_send![state.window, orderFrontRegardless];
 
         if !state.hide_timer.is_null() {
@@ -332,12 +326,14 @@ unsafe fn layout_hud(
     icon_label: *mut AnyObject,
     label: *mut AnyObject,
     width: f64,
-    height: f64,
-    visual_lines: usize,
 ) {
-    let text_height = (visual_lines as f64 * HUD_LINE_HEIGHT_ESTIMATE)
-        .max(HUD_LINE_HEIGHT_ESTIMATE)
-        .min((height - HUD_VERTICAL_PADDING * 2.0).max(HUD_LINE_HEIGHT_ESTIMATE));
+    let text_width = width - (HUD_HORIZONTAL_PADDING * 2.0 + HUD_ICON_WIDTH + HUD_GAP);
+    let measured_text_height = measure_text_height(label, text_width)
+        .min((HUD_MAX_HEIGHT - HUD_VERTICAL_PADDING * 2.0).max(HUD_LINE_HEIGHT_ESTIMATE));
+    let height = (measured_text_height + HUD_VERTICAL_PADDING * 2.0).clamp(HUD_MIN_HEIGHT, HUD_MAX_HEIGHT);
+    let text_height = (height - HUD_VERTICAL_PADDING * 2.0)
+        .min(measured_text_height)
+        .max(HUD_LINE_HEIGHT_ESTIMATE);
     let label_y = (height - text_height) / 2.0;
     let icon_y = (label_y + text_height - HUD_ICON_HEIGHT)
         .max(HUD_VERTICAL_PADDING)
@@ -366,6 +362,23 @@ unsafe fn layout_hud(
     let () = msg_send![icon_label, setFrame: icon_rect];
     let () = msg_send![label, setFrame: label_rect];
     center_window(window, width, height);
+}
+
+unsafe fn measure_text_height(label: *mut AnyObject, text_width: f64) -> f64 {
+    let cell: *mut AnyObject = msg_send![label, cell];
+    if cell.is_null() {
+        return HUD_LINE_HEIGHT_ESTIMATE;
+    }
+
+    let bounds = NSRect {
+        origin: NSPoint { x: 0.0, y: 0.0 },
+        size: NSSize {
+            width: text_width.max(1.0),
+            height: HUD_TEXT_MEASURE_HEIGHT,
+        },
+    };
+    let size: NSSize = msg_send![cell, cellSizeForBounds: bounds];
+    size.height.ceil().max(HUD_LINE_HEIGHT_ESTIMATE)
 }
 
 unsafe fn nsstring_from_str(value: &str) -> *mut AnyObject {
@@ -439,30 +452,18 @@ fn append_ellipsis(line: &str, max_width: usize) -> String {
     format!("{kept}...")
 }
 
-fn hud_size_for_text(text: &str) -> (f64, f64, usize) {
+fn hud_width_for_text(text: &str) -> f64 {
     let lines = split_non_trailing_lines(text);
     let max_units = lines
         .iter()
         .map(|line| line_display_units(line))
         .fold(1.0f64, f64::max);
 
-    let width = (max_units * HUD_CHAR_WIDTH_ESTIMATE
+    (max_units * HUD_CHAR_WIDTH_ESTIMATE
         + HUD_HORIZONTAL_PADDING * 2.0
         + HUD_ICON_WIDTH
         + HUD_GAP)
-        .clamp(HUD_MIN_WIDTH, HUD_MAX_WIDTH);
-    let text_area_width = width - (HUD_HORIZONTAL_PADDING * 2.0 + HUD_ICON_WIDTH + HUD_GAP);
-    let units_per_visual_line = (text_area_width / HUD_CHAR_WIDTH_ESTIMATE).max(1.0);
-
-    let visual_lines: usize = lines
-        .iter()
-        .map(|line| (line_display_units(line).max(1.0) / units_per_visual_line).ceil() as usize)
-        .sum();
-    let visual_lines = visual_lines.clamp(1, 10);
-
-    let height = (visual_lines as f64 * HUD_LINE_HEIGHT_ESTIMATE + HUD_VERTICAL_PADDING * 2.0)
-        .clamp(HUD_MIN_HEIGHT, HUD_MAX_HEIGHT);
-    (width, height, visual_lines)
+        .clamp(HUD_MIN_WIDTH, HUD_MAX_WIDTH)
 }
 
 fn split_non_trailing_lines(text: &str) -> Vec<&str> {
