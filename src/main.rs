@@ -262,9 +262,9 @@ unsafe fn create_hud_window() -> (*mut AnyObject, *mut AnyObject, *mut AnyObject
     let () = msg_send![label, setEditable: false];
     let () = msg_send![label, setSelectable: false];
     let () = msg_send![label, setDrawsBackground: false];
-    let () = msg_send![label, setLineBreakMode: 0isize];
+    let () = msg_send![label, setLineBreakMode: 2isize];
     let () = msg_send![label, setUsesSingleLineMode: false];
-    let () = msg_send![label, setMaximumNumberOfLines: 5isize];
+    let () = msg_send![label, setMaximumNumberOfLines: 0isize];
     let () = msg_send![label, setAlignment: 0isize];
 
     let () = msg_send![label, setTextColor: white];
@@ -280,7 +280,7 @@ unsafe fn create_hud_window() -> (*mut AnyObject, *mut AnyObject, *mut AnyObject
     if !cell.is_null() {
         let () = msg_send![cell, setWraps: true];
         let () = msg_send![cell, setScrollable: false];
-        let () = msg_send![cell, setLineBreakMode: 0isize];
+        let () = msg_send![cell, setLineBreakMode: 2isize];
     }
 
     let default_text = nsstring_from_str("Clipboard text");
@@ -424,25 +424,36 @@ fn append_ellipsis(line: &str, max_width: usize) -> String {
 
 fn hud_size_for_text(text: &str) -> (f64, f64) {
     let lines: Vec<&str> = text.split('\n').collect();
-    let max_chars = lines.iter().map(|line| line.chars().count()).max().unwrap_or(1);
+    let max_units = lines
+        .iter()
+        .map(|line| line_display_units(line))
+        .fold(1.0f64, f64::max);
 
-    let width = (max_chars as f64 * HUD_CHAR_WIDTH_ESTIMATE
+    let width = (max_units * HUD_CHAR_WIDTH_ESTIMATE
         + HUD_HORIZONTAL_PADDING * 2.0
         + HUD_ICON_WIDTH
         + HUD_GAP)
         .clamp(HUD_MIN_WIDTH, HUD_MAX_WIDTH);
     let text_area_width = width - (HUD_HORIZONTAL_PADDING * 2.0 + HUD_ICON_WIDTH + HUD_GAP);
-    let chars_per_visual_line = ((text_area_width / HUD_CHAR_WIDTH_ESTIMATE).floor() as usize).max(1);
+    let units_per_visual_line = (text_area_width / HUD_CHAR_WIDTH_ESTIMATE).max(1.0);
 
     let visual_lines: usize = lines
         .iter()
-        .map(|line| line.chars().count().max(1).div_ceil(chars_per_visual_line))
+        .map(|line| (line_display_units(line).max(1.0) / units_per_visual_line).ceil() as usize)
         .sum();
     let visual_lines = visual_lines.clamp(1, 10);
 
     let height = (visual_lines as f64 * HUD_LINE_HEIGHT_ESTIMATE + HUD_VERTICAL_PADDING * 2.0)
         .clamp(HUD_MIN_HEIGHT, HUD_MAX_HEIGHT);
     (width, height)
+}
+
+fn line_display_units(line: &str) -> f64 {
+    let units: f64 = line
+        .chars()
+        .map(|c| if c.is_ascii() { 1.0 } else { 2.0 })
+        .sum();
+    units.max(1.0)
 }
 
 #[cfg(test)]
