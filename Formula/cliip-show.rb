@@ -1,8 +1,8 @@
 class CliipShow < Formula
   desc "Show copied clipboard text as a HUD on macOS"
   homepage "https://github.com/somei-san/cliip-show"
-  url "https://github.com/somei-san/cliip-show/archive/refs/tags/v0.1.1.tar.gz"
-  sha256 "2cac71f71a7fe3399f335b1997d8e933accc67d6dcc47a1dfd7fa9a0b723027d"
+  url "https://github.com/somei-san/cliip-show/archive/refs/tags/v0.1.2.tar.gz"
+  sha256 "d780782bc229bc3068c44503fd834439d22ef9f766ebd52ab4051fd9ecd25164"
   license "MIT"
   head "https://github.com/somei-san/cliip-show.git", branch: "main"
 
