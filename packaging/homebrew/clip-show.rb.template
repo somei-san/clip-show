@@ -13,6 +13,16 @@ class ClipShow < Formula
     system "cargo", "install", *std_cargo_args(path: ".")
   end
 
+  def caveats
+    <<~EOS
+      To launch clip-show now and restart at login:
+        brew services start clip-show
+
+      To stop:
+        brew services stop clip-show
+    EOS
+  end
+
   service do
     run [opt_bin/"clip-show"]
     keep_alive true

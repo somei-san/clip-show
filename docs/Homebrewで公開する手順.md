@@ -31,9 +31,18 @@ git push origin v0.1.0
 ```bash
 brew tap somei-san/clip-show
 brew install clip-show
+brew services start clip-show
 ```
 
-## PC起動時に常駐起動する
+1行で実行する場合:
+
+```bash
+brew tap somei-san/clip-show && brew install clip-show && brew services start clip-show
+```
+
+`brew install` 後は Formula の `caveats` にも `brew services start clip-show` が表示されます。
+
+## PC起動時に常駐起動を有効化・停止する
 
 Homebrew service として登録すると、ログイン時に自動起動します。
 
