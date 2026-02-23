@@ -15,14 +15,15 @@ const BACKING_BUFFERED: isize = 2;
 const FLOATING_WINDOW_LEVEL: isize = 3;
 const HUD_MIN_WIDTH: f64 = 200.0;
 const HUD_MAX_WIDTH: f64 = 820.0;
-const HUD_MIN_HEIGHT: f64 = 60.0;
+const HUD_MIN_HEIGHT: f64 = 52.0;
 const HUD_MAX_HEIGHT: f64 = 280.0;
-const HUD_HORIZONTAL_PADDING: f64 = 18.0;
-const HUD_VERTICAL_PADDING: f64 = 14.0;
-const HUD_ICON_WIDTH: f64 = 20.0;
-const HUD_GAP: f64 = 10.0;
+const HUD_HORIZONTAL_PADDING: f64 = 16.0;
+const HUD_VERTICAL_PADDING: f64 = 10.0;
+const HUD_ICON_WIDTH: f64 = 22.0;
+const HUD_ICON_HEIGHT: f64 = 22.0;
+const HUD_GAP: f64 = 8.0;
 const HUD_CHAR_WIDTH_ESTIMATE: f64 = 9.6;
-const HUD_LINE_HEIGHT_ESTIMATE: f64 = 26.0;
+const HUD_LINE_HEIGHT_ESTIMATE: f64 = 22.0;
 
 struct AppState {
     last_change_count: isize,
@@ -131,8 +132,15 @@ extern "C" fn poll_pasteboard(this: &AnyObject, _: Sel, _: *mut AnyObject) {
         let () = msg_send![state.label, setStringValue: message];
         let () = msg_send![message, release];
 
-        let (hud_width, hud_height) = hud_size_for_text(&truncated);
-        layout_hud(state.window, state.icon_label, state.label, hud_width, hud_height);
+        let (hud_width, hud_height, visual_lines) = hud_size_for_text(&truncated);
+        layout_hud(
+            state.window,
+            state.icon_label,
+            state.label,
+            hud_width,
+            hud_height,
+            visual_lines,
+        );
         let () = msg_send![state.window, orderFrontRegardless];
 
         if !state.hide_timer.is_null() {
@@ -217,11 +225,12 @@ unsafe fn create_hud_window() -> (*mut AnyObject, *mut AnyObject, *mut AnyObject
     let icon_rect = NSRect {
         origin: NSPoint {
             x: HUD_HORIZONTAL_PADDING,
-            y: default_height - HUD_VERTICAL_PADDING - 26.0,
+            y: ((default_height - HUD_LINE_HEIGHT_ESTIMATE) / 2.0 + HUD_LINE_HEIGHT_ESTIMATE - HUD_ICON_HEIGHT)
+                .max(HUD_VERTICAL_PADDING),
         },
         size: NSSize {
             width: HUD_ICON_WIDTH,
-            height: 26.0,
+            height: HUD_ICON_HEIGHT,
         },
     };
 
@@ -232,12 +241,12 @@ unsafe fn create_hud_window() -> (*mut AnyObject, *mut AnyObject, *mut AnyObject
     let () = msg_send![icon_label, setEditable: false];
     let () = msg_send![icon_label, setSelectable: false];
     let () = msg_send![icon_label, setDrawsBackground: false];
-    let () = msg_send![icon_label, setAlignment: 0isize];
+    let () = msg_send![icon_label, setAlignment: 1isize];
     let () = msg_send![icon_label, setLineBreakMode: 0isize];
     let () = msg_send![icon_label, setUsesSingleLineMode: true];
     let white: *mut AnyObject = msg_send![class!(NSColor), whiteColor];
     let () = msg_send![icon_label, setTextColor: white];
-    let icon_font: *mut AnyObject = msg_send![class!(NSFont), systemFontOfSize: 20.0f64];
+    let icon_font: *mut AnyObject = msg_send![class!(NSFont), systemFontOfSize: 18.0f64];
     let () = msg_send![icon_label, setFont: icon_font];
     let icon_text = nsstring_from_str("📋");
     let () = msg_send![icon_label, setStringValue: icon_text];
@@ -246,11 +255,11 @@ unsafe fn create_hud_window() -> (*mut AnyObject, *mut AnyObject, *mut AnyObject
     let label_rect = NSRect {
         origin: NSPoint {
             x: HUD_HORIZONTAL_PADDING + HUD_ICON_WIDTH + HUD_GAP,
-            y: HUD_VERTICAL_PADDING,
+            y: (default_height - HUD_LINE_HEIGHT_ESTIMATE) / 2.0,
         },
         size: NSSize {
             width: default_width - (HUD_HORIZONTAL_PADDING * 2.0 + HUD_ICON_WIDTH + HUD_GAP),
-            height: default_height - HUD_VERTICAL_PADDING * 2.0,
+            height: HUD_LINE_HEIGHT_ESTIMATE,
         },
     };
 
@@ -324,25 +333,33 @@ unsafe fn layout_hud(
     label: *mut AnyObject,
     width: f64,
     height: f64,
+    visual_lines: usize,
 ) {
+    let text_height = (visual_lines as f64 * HUD_LINE_HEIGHT_ESTIMATE)
+        .max(HUD_LINE_HEIGHT_ESTIMATE)
+        .min((height - HUD_VERTICAL_PADDING * 2.0).max(HUD_LINE_HEIGHT_ESTIMATE));
+    let label_y = (height - text_height) / 2.0;
+    let icon_y = (label_y + text_height - HUD_ICON_HEIGHT)
+        .max(HUD_VERTICAL_PADDING)
+        .min(height - HUD_ICON_HEIGHT - HUD_VERTICAL_PADDING);
     let icon_rect = NSRect {
         origin: NSPoint {
             x: HUD_HORIZONTAL_PADDING,
-            y: height - HUD_VERTICAL_PADDING - 26.0,
+            y: icon_y,
         },
         size: NSSize {
             width: HUD_ICON_WIDTH,
-            height: 26.0,
+            height: HUD_ICON_HEIGHT,
         },
     };
     let label_rect = NSRect {
         origin: NSPoint {
             x: HUD_HORIZONTAL_PADDING + HUD_ICON_WIDTH + HUD_GAP,
-            y: HUD_VERTICAL_PADDING,
+            y: label_y,
         },
         size: NSSize {
             width: width - (HUD_HORIZONTAL_PADDING * 2.0 + HUD_ICON_WIDTH + HUD_GAP),
-            height: height - HUD_VERTICAL_PADDING * 2.0,
+            height: text_height,
         },
     };
 
@@ -375,8 +392,8 @@ unsafe fn nsstring_to_string(value: *mut AnyObject) -> Option<String> {
 }
 
 fn truncate_text(text: &str, max_width: usize, max_lines: usize) -> String {
-    let mut lines: Vec<String> = text
-        .split('\n')
+    let mut lines: Vec<String> = split_non_trailing_lines(text)
+        .into_iter()
         .map(|line| truncate_line(line, max_width))
         .collect();
 
@@ -422,8 +439,8 @@ fn append_ellipsis(line: &str, max_width: usize) -> String {
     format!("{kept}...")
 }
 
-fn hud_size_for_text(text: &str) -> (f64, f64) {
-    let lines: Vec<&str> = text.split('\n').collect();
+fn hud_size_for_text(text: &str) -> (f64, f64, usize) {
+    let lines = split_non_trailing_lines(text);
     let max_units = lines
         .iter()
         .map(|line| line_display_units(line))
@@ -445,7 +462,23 @@ fn hud_size_for_text(text: &str) -> (f64, f64) {
 
     let height = (visual_lines as f64 * HUD_LINE_HEIGHT_ESTIMATE + HUD_VERTICAL_PADDING * 2.0)
         .clamp(HUD_MIN_HEIGHT, HUD_MAX_HEIGHT);
-    (width, height)
+    (width, height, visual_lines)
+}
+
+fn split_non_trailing_lines(text: &str) -> Vec<&str> {
+    let mut lines: Vec<&str> = text
+        .split_terminator('\n')
+        .map(|line| line.trim_end_matches('\r'))
+        .collect();
+
+    while matches!(lines.last(), Some(last) if last.trim().is_empty()) {
+        lines.pop();
+    }
+
+    if lines.is_empty() {
+        lines.push("");
+    }
+    lines
 }
 
 fn line_display_units(line: &str) -> f64 {
