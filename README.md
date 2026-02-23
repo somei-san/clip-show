@@ -4,7 +4,7 @@
 
 - tap repository: <https://github.com/somei-san/homebrew-tools>
 
-## 機能: clip-show
+## 機能1: clip-show
 
 - source repository: <https://github.com/somei-san/clip-show>
 - formula: `Formula/clip-show.rb`
