@@ -1,0 +1,9 @@
+[package]
+name = "clip-show"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+objc2 = { version = "0.5", features = ["relax-sign-encoding", "relax-void-encoding"] }
+objc2-foundation = { version = "0.2", features = ["NSGeometry"] }
+objc2-app-kit = "0.2"
