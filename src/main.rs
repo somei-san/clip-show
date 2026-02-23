@@ -71,7 +71,7 @@ fn handle_cli_flags() -> bool {
         }
         "--help" | "-h" => {
             let mut help = String::new();
-            let _ = writeln!(help, "clipy-show {}", env!("CARGO_PKG_VERSION"));
+            let _ = writeln!(help, "cliip-show {}", env!("CARGO_PKG_VERSION"));
             let _ = writeln!(help, "clipboard HUD resident app for macOS");
             let _ = writeln!(help);
             let _ = writeln!(help, "Options:");

@@ -1,4 +1,4 @@
-# clipy-show
+# cliip-show
 
 ## 背景
 
@@ -10,7 +10,7 @@
 
 てなわけで、
 
-コピーされたプレーンテキストを画面中央に約1秒だけ表示する、macOS向けの常駐アプリ`clipy-show`です 🐟
+コピーされたプレーンテキストを画面中央に約1秒だけ表示する、macOS向けの常駐アプリ`cliip-show`です 🐟
 
 ## 概要
 
@@ -26,7 +26,7 @@
 
 ## HUDイメージ
 
-![clipy-show HUDの表示イメージ](docs/assets/clipy-show-hud.svg)
+![cliip-show HUDの表示イメージ](docs/assets/cliip-show-hud.svg)
 
 ## 開発起動
 
@@ -42,7 +42,7 @@ cargo run
 ```bash
 cargo install cargo-bundle
 cargo bundle --release
-open target/release/bundle/osx/clipy-show.app
+open target/release/bundle/osx/cliip-show.app
 ```
 
 ## Homebrew tapリポジトリ

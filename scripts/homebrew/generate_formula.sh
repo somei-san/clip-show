@@ -6,16 +6,16 @@ if [[ $# -lt 2 || $# -gt 3 ]]; then
 Usage: $0 <github-owner> <version> [output-path]
   github-owner: GitHub user/org name (e.g. somei-tanoue)
   version:      release version without leading v (e.g. 0.1.0)
-  output-path:  formula output path (default: ./clipy-show.rb)
+  output-path:  formula output path (default: ./cliip-show.rb)
 USAGE
   exit 1
 fi
 
 OWNER="$1"
 VERSION="$2"
-OUT_PATH="${3:-./clipy-show.rb}"
-TEMPLATE_PATH="packaging/homebrew/clipy-show.rb.template"
-ARCHIVE_URL="https://github.com/${OWNER}/clipy-show/archive/refs/tags/v${VERSION}.tar.gz"
+OUT_PATH="${3:-./cliip-show.rb}"
+TEMPLATE_PATH="packaging/homebrew/cliip-show.rb.template"
+ARCHIVE_URL="https://github.com/${OWNER}/cliip-show/archive/refs/tags/v${VERSION}.tar.gz"
 
 if [[ ! -f "${TEMPLATE_PATH}" ]]; then
   echo "Template not found: ${TEMPLATE_PATH}" >&2

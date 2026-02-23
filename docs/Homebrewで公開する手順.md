@@ -18,12 +18,12 @@ git push origin v0.1.0
 このリポジトリで以下を実行:
 
 ```bash
-./scripts/homebrew/generate_formula.sh somei-san {バージョン(exp: 0.0.1)} ./Formula/clipy-show.rb
+./scripts/homebrew/generate_formula.sh somei-san {バージョン(exp: 0.0.1)} ./Formula/cliip-show.rb
 ```
 
-生成された `Formula/clipy-show.rb` を [tap リポジトリ](##-2.-Homebrew-tapリポジトリ)の `Formula/clipy-show.rb` としてコミットして push してください。
+生成された `Formula/cliip-show.rb` を [tap リポジトリ](##-2.-Homebrew-tapリポジトリ)の `Formula/cliip-show.rb` としてコミットして push してください。
 
-テンプレートは `packaging/homebrew/clipy-show.rb.template` にあります。
+テンプレートは `packaging/homebrew/cliip-show.rb.template` にあります。
 
 ## 4. ユーザーのインストール手順
 
@@ -31,4 +31,4 @@ git push origin v0.1.0
 
 ## 補足
 
-`clipy-show` はGUI（AppKit）アプリのため、ユーザーログインセッションで動かしてください。
+`cliip-show` はGUI（AppKit）アプリのため、ユーザーログインセッションで動かしてください。
