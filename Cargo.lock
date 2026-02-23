@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "clip-show"
+name = "clipy-show"
 version = "0.1.0"
 dependencies = [
  "objc2",

@@ -15,9 +15,9 @@
   <circle cx="305" cy="210" r="16" fill="#60a5fa"/>
   <path d="M299 210h12M305 204v12" stroke="#0b1220" stroke-width="2.5" stroke-linecap="round"/>
   <text x="338" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26" fill="#f9fafb">
-    copied: "hello clip-show"
+    copied: "hello clipy-show"
   </text>
   <text x="40" y="46" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="24" fill="#1f2937">
-    clip-show HUD (image mock)
+    clipy-show HUD (image mock)
   </text>
 </svg>
