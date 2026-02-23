@@ -65,7 +65,7 @@ fn handle_cli_flags() -> bool {
     };
 
     match flag.as_str() {
-        "--version" | "-V" => {
+        "--version" | "-V" | "-v" => {
             println!("{}", env!("CARGO_PKG_VERSION"));
             true
         }
@@ -76,7 +76,7 @@ fn handle_cli_flags() -> bool {
             let _ = writeln!(help);
             let _ = writeln!(help, "Options:");
             let _ = writeln!(help, "  -h, --help       Print help");
-            let _ = writeln!(help, "  -V, --version    Print version");
+            let _ = writeln!(help, "  -v, -V, --version    Print version");
             print!("{help}");
             true
         }
