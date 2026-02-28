@@ -33,7 +33,6 @@ const HUD_CORNER_RADIUS: f64 = 14.0;
 const HUD_BORDER_WIDTH: f64 = 1.0;
 const HUD_ICON_FONT_SIZE: f64 = 18.0;
 const HUD_TEXT_FONT_SIZE: f64 = 18.0;
-const HUD_SCREEN_MARGIN: f64 = 24.0;
 const BITMAP_IMAGE_FILE_TYPE_PNG: usize = 4;
 const PIXEL_CHANNEL_TOLERANCE: u8 = 2;
 const DEFAULT_TRUNCATE_MAX_WIDTH: usize = 100;
@@ -1334,12 +1333,7 @@ unsafe fn create_hud_window(
         },
     };
 
-    if let Some((x, y)) = hud_origin(
-        default_width,
-        default_height,
-        settings.hud_position,
-        clamped_scale,
-    ) {
+    if let Some((x, y)) = hud_origin(default_width, default_height, settings.hud_position) {
         rect.origin = NSPoint { x, y };
     }
 
@@ -1489,7 +1483,6 @@ fn hud_origin_for_frame(
     width: f64,
     height: f64,
     position: HudPosition,
-    scale: f64,
 ) -> (f64, f64) {
     let min_x = frame.origin.x;
     let max_x = frame.origin.x + (frame.size.width - width).max(0.0);
@@ -1497,37 +1490,29 @@ fn hud_origin_for_frame(
     let max_y = frame.origin.y + (frame.size.height - height).max(0.0);
 
     let x = frame.origin.x + (frame.size.width - width) / 2.0;
-    let margin = (HUD_SCREEN_MARGIN
-        * parse_f64_value(scale, DEFAULT_HUD_SCALE, MIN_HUD_SCALE, MAX_HUD_SCALE))
-    .clamp(12.0, 80.0);
+    let available_height = (frame.size.height - height).max(0.0);
+    let center_y = frame.origin.y + available_height / 2.0;
+    let vertical_quarter = available_height / 4.0;
+    // AppKit screen coordinates increase upward. "Top" means a larger y value.
+    let upper_half_mid_y = center_y + vertical_quarter;
+    let lower_half_mid_y = center_y - vertical_quarter;
     let y = match position {
-        HudPosition::Top => max_y - margin,
-        HudPosition::Center => frame.origin.y + (frame.size.height - height) / 2.0,
-        HudPosition::Bottom => min_y + margin,
+        HudPosition::Top => upper_half_mid_y,
+        HudPosition::Center => center_y,
+        HudPosition::Bottom => lower_half_mid_y,
     };
     let x = x.clamp(min_x, max_x);
     let y = y.clamp(min_y, max_y);
     (x, y)
 }
 
-unsafe fn hud_origin(
-    width: f64,
-    height: f64,
-    position: HudPosition,
-    scale: f64,
-) -> Option<(f64, f64)> {
+unsafe fn hud_origin(width: f64, height: f64, position: HudPosition) -> Option<(f64, f64)> {
     let frame = main_screen_visible_frame()?;
-    Some(hud_origin_for_frame(frame, width, height, position, scale))
+    Some(hud_origin_for_frame(frame, width, height, position))
 }
 
-unsafe fn position_window(
-    window: *mut AnyObject,
-    width: f64,
-    height: f64,
-    position: HudPosition,
-    scale: f64,
-) {
-    let (x, y) = hud_origin(width, height, position, scale).unwrap_or((0.0, 0.0));
+unsafe fn position_window(window: *mut AnyObject, width: f64, height: f64, position: HudPosition) {
+    let (x, y) = hud_origin(width, height, position).unwrap_or((0.0, 0.0));
 
     let rect = NSRect {
         origin: NSPoint { x, y },
@@ -1576,13 +1561,7 @@ unsafe fn layout_hud(
 
     let () = msg_send![icon_label, setFrame: icon_rect];
     let () = msg_send![label, setFrame: label_rect];
-    position_window(
-        window,
-        metrics.width,
-        metrics.height,
-        settings.hud_position,
-        settings.hud_scale,
-    );
+    position_window(window, metrics.width, metrics.height, settings.hud_position);
 }
 
 unsafe fn measure_text_height(label: *mut AnyObject, text_width: f64, scale: f64) -> f64 {
@@ -1886,19 +1865,26 @@ narrow_clamped: w=200.0 text_w=138.0 h=52.0 text_h=22.0 label_y=15.0 icon_y=15.0
                 height: 800.0,
             },
         };
+        let hud_width = 600.0;
+        let hud_height = 100.0;
 
-        let (top_x, top_y) = hud_origin_for_frame(frame, 600.0, 100.0, HudPosition::Top, 1.0);
+        let (top_x, top_y) = hud_origin_for_frame(frame, hud_width, hud_height, HudPosition::Top);
         let (center_x, center_y) =
-            hud_origin_for_frame(frame, 600.0, 100.0, HudPosition::Center, 1.0);
+            hud_origin_for_frame(frame, hud_width, hud_height, HudPosition::Center);
         let (bottom_x, bottom_y) =
-            hud_origin_for_frame(frame, 600.0, 100.0, HudPosition::Bottom, 1.0);
+            hud_origin_for_frame(frame, hud_width, hud_height, HudPosition::Bottom);
 
-        assert_eq!(top_x, 200.0);
-        assert_eq!(center_x, 200.0);
-        assert_eq!(bottom_x, 200.0);
-        assert_eq!(top_y, 676.0);
-        assert_eq!(center_y, 350.0);
-        assert_eq!(bottom_y, 24.0);
+        let expected_x = frame.origin.x + (frame.size.width - hud_width) / 2.0;
+        let expected_available_height = (frame.size.height - hud_height).max(0.0);
+        let expected_center_y = frame.origin.y + expected_available_height / 2.0;
+        let expected_offset = expected_available_height / 4.0;
+
+        assert_eq!(top_x, expected_x);
+        assert_eq!(center_x, expected_x);
+        assert_eq!(bottom_x, expected_x);
+        assert_eq!(top_y, expected_center_y + expected_offset);
+        assert_eq!(center_y, expected_center_y);
+        assert_eq!(bottom_y, expected_center_y - expected_offset);
     }
 
     #[test]
