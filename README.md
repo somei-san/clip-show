@@ -71,6 +71,7 @@ HUDの描画結果をPNGで比較します。
 
 差分がある場合は `tests/visual/artifacts/*.current.png` と `*.diff.png` が出力されます。  
 `*.diff.png` は差分箇所を赤で強調表示します。
+判定はピクセル差分率で行い、既定では `12%` まで許容します（`MAX_DIFF_PERMILLE=120`）。
 
 運用ルール:
 - 通常のPRでは `./scripts/visual_regression.sh` のみ実行

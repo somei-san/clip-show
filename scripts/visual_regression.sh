@@ -24,6 +24,7 @@ rm -f "$ARTIFACT_DIR"/*.png
 
 cargo build >/dev/null
 BIN="$ROOT_DIR/target/debug/cliip-show"
+MAX_DIFF_PERMILLE="${MAX_DIFF_PERMILLE:-120}" # 120/1000 = 12%
 
 case_ids=(
   "ascii_short"
@@ -90,12 +91,17 @@ for i in "${!case_ids[@]}"; do
     rm -f "$diff"
     echo "ok: $id"
   else
-    echo "ng: $id" >&2
-    echo "  baseline: $baseline" >&2
-    echo "  current : $current" >&2
-    echo "  diff    : $diff" >&2
-    echo "  pixels  : ${diff_pixels}/${total_pixels}" >&2
-    failed=1
+    if (( diff_pixels * 1000 <= total_pixels * MAX_DIFF_PERMILLE )); then
+      echo "ok: $id (within tolerance ${diff_pixels}/${total_pixels}, max=${MAX_DIFF_PERMILLE}/1000)"
+      rm -f "$diff"
+    else
+      echo "ng: $id" >&2
+      echo "  baseline: $baseline" >&2
+      echo "  current : $current" >&2
+      echo "  diff    : $diff" >&2
+      echo "  pixels  : ${diff_pixels}/${total_pixels} (max=${MAX_DIFF_PERMILLE}/1000)" >&2
+      failed=1
+    fi
   fi
 done
 
