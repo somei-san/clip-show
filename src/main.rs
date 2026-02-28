@@ -217,8 +217,7 @@ fn render_hud_png(text: &str, output_path: &str) -> Result<(), String> {
         }
 
         let bounds: NSRect = msg_send![content_view, bounds];
-        let bitmap: *mut AnyObject =
-            msg_send![content_view, bitmapImageRepForCachingDisplayInRect: bounds];
+        let bitmap = create_bitmap_rep_for_bounds(bounds)?;
         if bitmap.is_null() {
             return Err("failed to create bitmap image rep".to_string());
         }
@@ -359,6 +358,35 @@ unsafe fn color_components(color: *mut AnyObject) -> Option<(f64, f64, f64, f64)
 
 fn to_u8(component: f64) -> u8 {
     (component.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+fn create_bitmap_rep_for_bounds(bounds: NSRect) -> Result<*mut AnyObject, String> {
+    let width = bounds.size.width.ceil().max(1.0) as isize;
+    let height = bounds.size.height.ceil().max(1.0) as isize;
+    unsafe {
+        let bitmap: *mut AnyObject = msg_send![class!(NSBitmapImageRep), alloc];
+        let color_space = nsstring_from_str("NSCalibratedRGBColorSpace");
+        let bitmap: *mut AnyObject = msg_send![
+            bitmap,
+            initWithBitmapDataPlanes: ptr::null_mut::<*mut u8>()
+            pixelsWide: width
+            pixelsHigh: height
+            bitsPerSample: 8isize
+            samplesPerPixel: 4isize
+            hasAlpha: true
+            isPlanar: false
+            colorSpaceName: color_space
+            bytesPerRow: 0isize
+            bitsPerPixel: 0isize
+        ];
+        let () = msg_send![color_space, release];
+
+        if bitmap.is_null() {
+            return Err("failed to allocate fixed-size bitmap image rep".to_string());
+        }
+
+        Ok(bitmap)
+    }
 }
 
 fn get_delegate_class() -> &'static AnyClass {

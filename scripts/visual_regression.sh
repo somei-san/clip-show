@@ -69,10 +69,13 @@ for i in "${!case_ids[@]}"; do
     echo "ng: $id" >&2
     echo "  baseline: $baseline" >&2
     echo "  current : $current" >&2
-    if "$BIN" --diff-png --baseline "$baseline" --current "$current" --output "$diff" >/dev/null 2>&1; then
+    if diff_output=$("$BIN" --diff-png --baseline "$baseline" --current "$current" --output "$diff" 2>&1); then
       echo "  diff    : $diff" >&2
     else
       echo "  diff    : failed to generate" >&2
+      if [[ -n "$diff_output" ]]; then
+        echo "  reason  : $diff_output" >&2
+      fi
     fi
     failed=1
   fi
