@@ -646,9 +646,7 @@ unsafe fn centered_origin(width: f64, height: f64) -> Option<(f64, f64)> {
 }
 
 unsafe fn center_window(window: *mut AnyObject, width: f64, height: f64) {
-    let Some((x, y)) = centered_origin(width, height) else {
-        return;
-    };
+    let (x, y) = centered_origin(width, height).unwrap_or((0.0, 0.0));
 
     let rect = NSRect {
         origin: NSPoint { x, y },
