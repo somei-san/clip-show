@@ -25,42 +25,46 @@ rm -f "$ARTIFACT_DIR"/*.png
 cargo build >/dev/null
 BIN="$ROOT_DIR/target/debug/cliip-show"
 MAX_DIFF_PERMILLE="${MAX_DIFF_PERMILLE:-120}" # 120/1000 = 12%
-
-case_ids=(
-  "ascii_short"
-  "ascii_long"
-  "wide_text"
-  "multiline"
-)
-
-case_texts=(
-  "hello clipboard"
-  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  "日本語のコピー内容です"
-  $'line1\nline2\nline3'
-)
+VRT_CONFIG_PATH="$ARTIFACT_DIR/vrt-config.toml"
+rm -f "$VRT_CONFIG_PATH"
 
 failed=0
-for i in "${!case_ids[@]}"; do
-  id="${case_ids[$i]}"
-  text="${case_texts[$i]}"
-  current="$ARTIFACT_DIR/${id}.current.png"
-  baseline="$BASELINE_DIR/${id}.png"
-  diff="$ARTIFACT_DIR/${id}.diff.png"
 
-  "$BIN" --render-hud-png --text "$text" --output "$current"
+run_case() {
+  local id="$1"
+  local text="$2"
+  shift 2
+
+  local current="$ARTIFACT_DIR/${id}.current.png"
+  local baseline="$BASELINE_DIR/${id}.png"
+  local diff="$ARTIFACT_DIR/${id}.diff.png"
+
+  local -a cmd=(
+    env
+    -u CLIIP_SHOW_CONFIG_PATH
+    -u CLIIP_SHOW_POLL_INTERVAL_SECS
+    -u CLIIP_SHOW_HUD_DURATION_SECS
+    -u CLIIP_SHOW_MAX_CHARS_PER_LINE
+    -u CLIIP_SHOW_MAX_LINES
+    "CLIIP_SHOW_CONFIG_PATH=$VRT_CONFIG_PATH"
+  )
+  if [[ $# -gt 0 ]]; then
+    cmd+=("$@")
+  fi
+  cmd+=("$BIN" --render-hud-png --text "$text" --output "$current")
+  "${cmd[@]}"
 
   if $UPDATE; then
     cp "$current" "$baseline"
     rm -f "$diff"
     echo "updated: $baseline"
-    continue
+    return
   fi
 
   if [[ ! -f "$baseline" ]]; then
     echo "missing baseline: $baseline (run ./scripts/visual_regression.sh --update once)" >&2
     failed=1
-    continue
+    return
   fi
 
   if diff_output=$("$BIN" --diff-png --baseline "$baseline" --current "$current" --output "$diff" 2>&1); then
@@ -73,7 +77,7 @@ for i in "${!case_ids[@]}"; do
       echo "  diff    : failed to parse diff output" >&2
       echo "  reason  : $diff_output" >&2
       failed=1
-      continue
+      return
     fi
   else
     echo "ng: $id" >&2
@@ -84,7 +88,7 @@ for i in "${!case_ids[@]}"; do
       echo "  reason  : $diff_output" >&2
     fi
     failed=1
-    continue
+    return
   fi
 
   if [[ "$diff_pixels" -eq 0 ]]; then
@@ -103,7 +107,47 @@ for i in "${!case_ids[@]}"; do
       failed=1
     fi
   fi
-done
+}
+
+run_case \
+  "ascii_short" \
+  "hello clipboard"
+
+run_case \
+  "ascii_long" \
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+run_case \
+  "wide_text" \
+  "日本語のコピー内容です"
+
+run_case \
+  "multiline" \
+  $'line1\nline2\nline3'
+
+# Settings profile: max_lines=2
+run_case \
+  "setting_max_lines_2_multiline" \
+  $'line1\nline2\nline3\nline4' \
+  "CLIIP_SHOW_MAX_LINES=2"
+
+# Settings profile: max_chars_per_line=24
+run_case \
+  "setting_max_chars_24_ascii_long" \
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  "CLIIP_SHOW_MAX_CHARS_PER_LINE=24"
+
+# Settings profile: max_chars_per_line=16 and max_lines=2
+run_case \
+  "setting_compact_text_block" \
+  $'abcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz' \
+  "CLIIP_SHOW_MAX_CHARS_PER_LINE=16" \
+  "CLIIP_SHOW_MAX_LINES=2"
+
+if $UPDATE; then
+  echo "visual regression baseline updated"
+  exit 0
+fi
 
 if [[ "$failed" -ne 0 ]]; then
   exit 1

@@ -70,6 +70,11 @@ HUDの描画結果をPNGで比較します。
 ./scripts/visual_regression.sh
 ```
 
+このスクリプトは以下の観点を比較します。
+
+- デフォルト設定での表示
+- 設定プロファイルごとの表示（例: `max_lines=2`, `max_chars_per_line=24`）
+
 ### 生成物
 
 - `tests/visual/baseline/*.png`: 比較基準となるベースライン画像

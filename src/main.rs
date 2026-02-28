@@ -132,8 +132,18 @@ fn default_display_settings() -> DisplaySettings {
 
 fn display_settings() -> DisplaySettings {
     let mut settings = default_display_settings();
-    if let Ok(config) = load_config_file(&config_file_path()) {
-        settings = apply_config_file(settings, &config);
+    match config_file_path() {
+        Ok(config_path) => match load_config_file(&config_path) {
+            Ok((config, _)) => {
+                settings = apply_config_file(settings, &config);
+            }
+            Err(error) => {
+                eprintln!("warning: {error}");
+            }
+        },
+        Err(error) => {
+            eprintln!("warning: {error}");
+        }
     }
     apply_env_overrides(settings)
 }
@@ -157,27 +167,19 @@ fn apply_config_file(base: DisplaySettings, config: &AppConfigFile) -> DisplaySe
         );
     }
     if let Some(value) = config.display.max_chars_per_line {
-        settings.truncate_max_width = parse_usize_value(
-            value,
-            settings.truncate_max_width,
-            MIN_TRUNCATE_MAX_WIDTH,
-            MAX_TRUNCATE_MAX_WIDTH,
-        );
+        settings.truncate_max_width =
+            parse_usize_value(value, MIN_TRUNCATE_MAX_WIDTH, MAX_TRUNCATE_MAX_WIDTH);
     }
     if let Some(value) = config.display.max_lines {
-        settings.truncate_max_lines = parse_usize_value(
-            value,
-            settings.truncate_max_lines,
-            MIN_TRUNCATE_MAX_LINES,
-            MAX_TRUNCATE_MAX_LINES,
-        );
+        settings.truncate_max_lines =
+            parse_usize_value(value, MIN_TRUNCATE_MAX_LINES, MAX_TRUNCATE_MAX_LINES);
     }
     settings
 }
 
 fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
     let mut settings = base;
-    if let Some(value) = read_env_f64_option("CLIIP_SHOW_POLL_INTERVAL_SECS") {
+    if let Some(value) = read_env_option("CLIIP_SHOW_POLL_INTERVAL_SECS") {
         settings.poll_interval_secs = parse_f64_setting(
             &value,
             settings.poll_interval_secs,
@@ -185,7 +187,7 @@ fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
             MAX_POLL_INTERVAL_SECS,
         );
     }
-    if let Some(value) = read_env_f64_option("CLIIP_SHOW_HUD_DURATION_SECS") {
+    if let Some(value) = read_env_option("CLIIP_SHOW_HUD_DURATION_SECS") {
         settings.hud_duration_secs = parse_f64_setting(
             &value,
             settings.hud_duration_secs,
@@ -193,7 +195,7 @@ fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
             MAX_HUD_DURATION_SECS,
         );
     }
-    if let Some(value) = read_env_usize_option("CLIIP_SHOW_MAX_CHARS_PER_LINE") {
+    if let Some(value) = read_env_option("CLIIP_SHOW_MAX_CHARS_PER_LINE") {
         settings.truncate_max_width = parse_usize_setting(
             &value,
             settings.truncate_max_width,
@@ -201,7 +203,7 @@ fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
             MAX_TRUNCATE_MAX_WIDTH,
         );
     }
-    if let Some(value) = read_env_usize_option("CLIIP_SHOW_MAX_LINES") {
+    if let Some(value) = read_env_option("CLIIP_SHOW_MAX_LINES") {
         settings.truncate_max_lines = parse_usize_setting(
             &value,
             settings.truncate_max_lines,
@@ -212,14 +214,7 @@ fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
     settings
 }
 
-fn read_env_f64_option(name: &str) -> Option<String> {
-    let Ok(raw) = std::env::var(name) else {
-        return None;
-    };
-    Some(raw.trim().to_string())
-}
-
-fn read_env_usize_option(name: &str) -> Option<String> {
+fn read_env_option(name: &str) -> Option<String> {
     let Ok(raw) = std::env::var(name) else {
         return None;
     };
@@ -233,30 +228,42 @@ fn parse_f64_value(value: f64, default: f64, min: f64, max: f64) -> f64 {
     value.clamp(min, max)
 }
 
-fn parse_usize_value(value: usize, _: usize, min: usize, max: usize) -> usize {
+fn parse_usize_value(value: usize, min: usize, max: usize) -> usize {
     value.clamp(min, max)
 }
 
-fn config_file_path() -> PathBuf {
+fn config_file_path() -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("CLIIP_SHOW_CONFIG_PATH") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+            return Ok(PathBuf::from(trimmed));
         }
     }
 
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(DEFAULT_CONFIG_RELATIVE_PATH)
+    let home =
+        std::env::var("HOME").map_err(|_| "failed to resolve HOME for config path".to_string())?;
+    let trimmed = home.trim();
+    if trimmed.is_empty() {
+        return Err("failed to resolve HOME for config path".to_string());
+    }
+    Ok(PathBuf::from(trimmed).join(DEFAULT_CONFIG_RELATIVE_PATH))
 }
 
-fn load_config_file(path: &Path) -> Result<AppConfigFile, String> {
-    if !path.exists() {
-        return Ok(AppConfigFile::default());
-    }
-
-    let content = fs::read_to_string(path)
-        .map_err(|err| format!("failed to read config file {}: {err}", path.display()))?;
+fn load_config_file(path: &Path) -> Result<(AppConfigFile, bool), String> {
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok((AppConfigFile::default(), false));
+        }
+        Err(err) => {
+            return Err(format!(
+                "failed to read config file {}: {err}",
+                path.display()
+            ));
+        }
+    };
     toml::from_str::<AppConfigFile>(&content)
+        .map(|config| (config, true))
         .map_err(|err| format!("failed to parse config file {}: {err}", path.display()))
 }
 
@@ -291,58 +298,86 @@ fn parse_config_key(raw: &str) -> Option<ConfigKey> {
     }
 }
 
-fn set_config_value(config: &mut AppConfigFile, key: ConfigKey, value: &str) -> Result<(), String> {
+fn set_config_value(
+    config: &mut AppConfigFile,
+    key: ConfigKey,
+    value: &str,
+) -> Result<Option<String>, String> {
     match key {
         ConfigKey::PollIntervalSecs => {
             let raw = value.trim();
             let parsed = raw
                 .parse::<f64>()
                 .map_err(|_| format!("invalid f64 value for poll_interval_secs: {raw}"))?;
-            config.display.poll_interval_secs = Some(parse_f64_value(
+            if !parsed.is_finite() {
+                return Err(format!(
+                    "invalid finite f64 value for poll_interval_secs: {raw}"
+                ));
+            }
+            let clamped = parse_f64_value(
                 parsed,
                 POLL_INTERVAL_SECS,
                 MIN_POLL_INTERVAL_SECS,
                 MAX_POLL_INTERVAL_SECS,
-            ));
+            );
+            config.display.poll_interval_secs = Some(clamped);
+            if parsed < MIN_POLL_INTERVAL_SECS || parsed > MAX_POLL_INTERVAL_SECS {
+                return Ok(Some(format!(
+                    "poll_interval_secs was clamped from {parsed} to {clamped} (allowed range: {MIN_POLL_INTERVAL_SECS}..={MAX_POLL_INTERVAL_SECS})"
+                )));
+            }
         }
         ConfigKey::HudDurationSecs => {
             let raw = value.trim();
             let parsed = raw
                 .parse::<f64>()
                 .map_err(|_| format!("invalid f64 value for hud_duration_secs: {raw}"))?;
-            config.display.hud_duration_secs = Some(parse_f64_value(
+            if !parsed.is_finite() {
+                return Err(format!(
+                    "invalid finite f64 value for hud_duration_secs: {raw}"
+                ));
+            }
+            let clamped = parse_f64_value(
                 parsed,
                 HUD_DURATION_SECS,
                 MIN_HUD_DURATION_SECS,
                 MAX_HUD_DURATION_SECS,
-            ));
+            );
+            config.display.hud_duration_secs = Some(clamped);
+            if parsed < MIN_HUD_DURATION_SECS || parsed > MAX_HUD_DURATION_SECS {
+                return Ok(Some(format!(
+                    "hud_duration_secs was clamped from {parsed} to {clamped} (allowed range: {MIN_HUD_DURATION_SECS}..={MAX_HUD_DURATION_SECS})"
+                )));
+            }
         }
         ConfigKey::MaxCharsPerLine => {
             let raw = value.trim();
             let parsed = raw
                 .parse::<usize>()
                 .map_err(|_| format!("invalid usize value for max_chars_per_line: {raw}"))?;
-            config.display.max_chars_per_line = Some(parse_usize_value(
-                parsed,
-                DEFAULT_TRUNCATE_MAX_WIDTH,
-                MIN_TRUNCATE_MAX_WIDTH,
-                MAX_TRUNCATE_MAX_WIDTH,
-            ));
+            let clamped = parse_usize_value(parsed, MIN_TRUNCATE_MAX_WIDTH, MAX_TRUNCATE_MAX_WIDTH);
+            config.display.max_chars_per_line = Some(clamped);
+            if parsed < MIN_TRUNCATE_MAX_WIDTH || parsed > MAX_TRUNCATE_MAX_WIDTH {
+                return Ok(Some(format!(
+                    "max_chars_per_line was clamped from {parsed} to {clamped} (allowed range: {MIN_TRUNCATE_MAX_WIDTH}..={MAX_TRUNCATE_MAX_WIDTH})"
+                )));
+            }
         }
         ConfigKey::MaxLines => {
             let raw = value.trim();
             let parsed = raw
                 .parse::<usize>()
                 .map_err(|_| format!("invalid usize value for max_lines: {raw}"))?;
-            config.display.max_lines = Some(parse_usize_value(
-                parsed,
-                DEFAULT_TRUNCATE_MAX_LINES,
-                MIN_TRUNCATE_MAX_LINES,
-                MAX_TRUNCATE_MAX_LINES,
-            ));
+            let clamped = parse_usize_value(parsed, MIN_TRUNCATE_MAX_LINES, MAX_TRUNCATE_MAX_LINES);
+            config.display.max_lines = Some(clamped);
+            if parsed < MIN_TRUNCATE_MAX_LINES || parsed > MAX_TRUNCATE_MAX_LINES {
+                return Ok(Some(format!(
+                    "max_lines was clamped from {parsed} to {clamped} (allowed range: {MIN_TRUNCATE_MAX_LINES}..={MAX_TRUNCATE_MAX_LINES})"
+                )));
+            }
         }
     }
-    Ok(())
+    Ok(None)
 }
 
 fn print_effective_settings(settings: DisplaySettings) {
@@ -364,7 +399,13 @@ fn settings_to_config_file(settings: DisplaySettings) -> AppConfigFile {
 }
 
 fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
-    let path = config_file_path();
+    let path = match config_file_path() {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    };
     let Some(cmd) = args.next() else {
         eprintln!("Usage: cliip-show --config <path|show|init|set>");
         std::process::exit(2);
@@ -372,42 +413,55 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
 
     match cmd.as_str() {
         "path" => {
+            if args.next().is_some() {
+                eprintln!("Usage: cliip-show --config path");
+                std::process::exit(2);
+            }
             println!("{}", path.display());
             true
         }
         "show" => {
+            if args.next().is_some() {
+                eprintln!("Usage: cliip-show --config show");
+                std::process::exit(2);
+            }
             println!("config_path = {}", path.display());
-            if path.exists() {
+            let (config, loaded_from_file) = match load_config_file(&path) {
+                Ok(result) => result,
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            };
+            if loaded_from_file {
                 println!("config_file = exists");
-                match load_config_file(&path) {
-                    Ok(config) => {
-                        println!("[saved]");
-                        if let Some(value) = config.display.poll_interval_secs {
-                            println!("poll_interval_secs = {}", value);
-                        }
-                        if let Some(value) = config.display.hud_duration_secs {
-                            println!("hud_duration_secs = {}", value);
-                        }
-                        if let Some(value) = config.display.max_chars_per_line {
-                            println!("max_chars_per_line = {}", value);
-                        }
-                        if let Some(value) = config.display.max_lines {
-                            println!("max_lines = {}", value);
-                        }
-                    }
-                    Err(error) => {
-                        eprintln!("{error}");
-                        std::process::exit(1);
-                    }
+                println!("[saved]");
+                if let Some(value) = config.display.poll_interval_secs {
+                    println!("poll_interval_secs = {}", value);
+                }
+                if let Some(value) = config.display.hud_duration_secs {
+                    println!("hud_duration_secs = {}", value);
+                }
+                if let Some(value) = config.display.max_chars_per_line {
+                    println!("max_chars_per_line = {}", value);
+                }
+                if let Some(value) = config.display.max_lines {
+                    println!("max_lines = {}", value);
                 }
             } else {
                 println!("config_file = not_found");
             }
             println!("[effective]");
-            print_effective_settings(display_settings());
+            let effective =
+                apply_env_overrides(apply_config_file(default_display_settings(), &config));
+            print_effective_settings(effective);
             true
         }
         "init" => {
+            if args.next().is_some() {
+                eprintln!("Usage: cliip-show --config init");
+                std::process::exit(2);
+            }
             let config = settings_to_config_file(default_display_settings());
             if let Err(error) = save_config_file(&path, &config) {
                 eprintln!("{error}");
@@ -428,6 +482,10 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
                 eprintln!("Usage: cliip-show --config set <key> <value>");
                 std::process::exit(2);
             };
+            if args.next().is_some() {
+                eprintln!("Usage: cliip-show --config set <key> <value>");
+                std::process::exit(2);
+            }
             let Some(key) = parse_config_key(key_raw.trim()) else {
                 eprintln!(
                     "Unknown key: {key_raw}. Available keys: poll_interval_secs, hud_duration_secs, max_chars_per_line, max_lines"
@@ -436,20 +494,26 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
             };
 
             let mut config = match load_config_file(&path) {
-                Ok(config) => config,
+                Ok((config, _)) => config,
                 Err(error) => {
                     eprintln!("{error}");
                     std::process::exit(1);
                 }
             };
 
-            if let Err(error) = set_config_value(&mut config, key, value_raw.trim()) {
-                eprintln!("{error}");
-                std::process::exit(2);
-            }
+            let warning = match set_config_value(&mut config, key, value_raw.trim()) {
+                Ok(warning) => warning,
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(2);
+                }
+            };
             if let Err(error) = save_config_file(&path, &config) {
                 eprintln!("{error}");
                 std::process::exit(1);
+            }
+            if let Some(warning) = warning {
+                eprintln!("warning: {warning}");
             }
             println!("updated config: {}", path.display());
             println!("[effective]");
@@ -666,7 +730,12 @@ fn render_hud_png(text: &str, output_path: &str) -> Result<(), String> {
     unsafe {
         let _app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
         let (window, icon_label, label) = create_hud_window();
-        let truncated = truncate_text(text, DEFAULT_TRUNCATE_MAX_WIDTH, DEFAULT_TRUNCATE_MAX_LINES);
+        let settings = display_settings();
+        let truncated = truncate_text(
+            text,
+            settings.truncate_max_width,
+            settings.truncate_max_lines,
+        );
         let message = nsstring_from_str(&truncated);
         let () = msg_send![label, setStringValue: message];
         let () = msg_send![message, release];
@@ -1441,11 +1510,28 @@ narrow_clamped: w=200.0 text_w=138.0 h=52.0 text_h=22.0 label_y=15.0 icon_y=15.0
     #[test]
     fn set_config_value_clamps_values() {
         let mut config = AppConfigFile::default();
-        set_config_value(&mut config, ConfigKey::PollIntervalSecs, "0.01")
+        let poll_warning = set_config_value(&mut config, ConfigKey::PollIntervalSecs, "0.01")
             .expect("set poll interval");
-        set_config_value(&mut config, ConfigKey::MaxLines, "999").expect("set max lines");
+        let lines_warning =
+            set_config_value(&mut config, ConfigKey::MaxLines, "999").expect("set max lines");
 
         assert_eq!(config.display.poll_interval_secs, Some(0.05));
         assert_eq!(config.display.max_lines, Some(20));
+        assert!(poll_warning.is_some());
+        assert!(lines_warning.is_some());
+    }
+
+    #[test]
+    fn set_config_value_rejects_non_finite_f64_values() {
+        let mut config = AppConfigFile::default();
+        let poll_err = set_config_value(&mut config, ConfigKey::PollIntervalSecs, "NaN")
+            .expect_err("reject NaN");
+        let duration_err = set_config_value(&mut config, ConfigKey::HudDurationSecs, "inf")
+            .expect_err("reject inf");
+
+        assert!(poll_err.contains("invalid finite f64 value for poll_interval_secs"));
+        assert!(duration_err.contains("invalid finite f64 value for hud_duration_secs"));
+        assert_eq!(config.display.poll_interval_secs, None);
+        assert_eq!(config.display.hud_duration_secs, None);
     }
 }
