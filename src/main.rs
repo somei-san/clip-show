@@ -37,7 +37,7 @@ const BITMAP_IMAGE_FILE_TYPE_PNG: usize = 4;
 const PIXEL_CHANNEL_TOLERANCE: u8 = 2;
 const DEFAULT_TRUNCATE_MAX_WIDTH: usize = 100;
 const DEFAULT_TRUNCATE_MAX_LINES: usize = 5;
-const DEFAULT_HUD_SCALE: f64 = 1.0;
+const DEFAULT_HUD_SCALE: f64 = 1.1;
 
 const MIN_POLL_INTERVAL_SECS: f64 = 0.05;
 const MAX_POLL_INTERVAL_SECS: f64 = 5.0;
@@ -98,8 +98,8 @@ struct DiffSummary {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 enum HudPosition {
-    Top,
     #[default]
+    Top,
     Center,
     Bottom,
 }
@@ -202,7 +202,7 @@ fn default_display_settings() -> DisplaySettings {
         hud_duration_secs: HUD_DURATION_SECS,
         truncate_max_width: DEFAULT_TRUNCATE_MAX_WIDTH,
         truncate_max_lines: DEFAULT_TRUNCATE_MAX_LINES,
-        hud_position: HudPosition::default(),
+        hud_position: HudPosition::Top,
         hud_scale: DEFAULT_HUD_SCALE,
         hud_background_color: HudBackgroundColor::default(),
     }
@@ -791,9 +791,9 @@ fn handle_cli_flags() -> bool {
             let _ = writeln!(help, "  max_lines            default=5 (1 - 20)");
             let _ = writeln!(
                 help,
-                "  hud_position         default=center (top|center|bottom)"
+                "  hud_position         default=top (top|center|bottom)"
             );
-            let _ = writeln!(help, "  hud_scale            default=1.0 (0.5 - 2.0)");
+            let _ = writeln!(help, "  hud_scale            default=1.1 (0.5 - 2.0)");
             let _ = writeln!(
                 help,
                 "  hud_background_color default=default (default|yellow|blue|green|red|purple)"
@@ -1777,10 +1777,10 @@ mod tests {
             .join("\n");
 
         let expected = "\
-ascii_short: 200.0
-ascii_40: 446.0
-wide_20: 446.0
-ascii_very_long: 820.0";
+ascii_short: 220.0
+ascii_40: 490.6
+wide_20: 490.6
+ascii_very_long: 902.0";
 
         assert_eq!(snapshot, expected);
     }
@@ -1812,10 +1812,10 @@ ascii_very_long: 820.0";
             .join("\n");
 
         let expected = "\
-one_line: w=600.0 text_w=538.0 h=52.0 text_h=22.0 label_y=15.0 icon_y=15.0
-three_lines: w=600.0 text_w=538.0 h=108.0 text_h=88.0 label_y=10.0 icon_y=76.0
-overflow: w=600.0 text_w=538.0 h=280.0 text_h=260.0 label_y=10.0 icon_y=248.0
-narrow_clamped: w=200.0 text_w=138.0 h=52.0 text_h=22.0 label_y=15.0 icon_y=15.0";
+one_line: w=600.0 text_w=531.8 h=57.2 text_h=24.2 label_y=16.5 icon_y=16.5
+three_lines: w=600.0 text_w=531.8 h=110.0 text_h=88.0 label_y=11.0 icon_y=74.8
+overflow: w=600.0 text_w=531.8 h=308.0 text_h=286.0 label_y=11.0 icon_y=272.8
+narrow_clamped: w=220.0 text_w=151.8 h=57.2 text_h=24.2 label_y=16.5 icon_y=16.5";
 
         assert_eq!(snapshot, expected);
     }

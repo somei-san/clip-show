@@ -17,10 +17,12 @@ cargo run
 ./scripts/local_check.sh
 ```
 
+引数なし実行では、アプリのデフォルト表示設定（`hud_position=top`, `hud_scale=1.1`, `hud_background_color=default`）で確認します。
+
 主なオプション:
 
 ```bash
-./scripts/local_check.sh --position bottom --scale 0.8 --color red
+./scripts/local_check.sh --position bottom --scale 1.5 --color red
 ./scripts/local_check.sh --no-stop-brew --no-build
 ```
 
@@ -56,8 +58,8 @@ cliip-show --config set hud_background_color blue
 - `hud_duration_secs`（既定値: `1.0`、`0.1` - `10.0`）
 - `max_chars_per_line`（既定値: `100`、`1` - `500`）
 - `max_lines`（既定値: `5`、`1` - `20`）
-- `hud_position`（既定値: `center`、`top` / `center` / `bottom`）
-- `hud_scale`（既定値: `1.0`、`0.5` - `2.0`）
+- `hud_position`（既定値: `top`、`top` / `center` / `bottom`）
+- `hud_scale`（既定値: `1.1`、`0.5` - `2.0`）
 - `hud_background_color`（既定値: `default`、`default` / `yellow` / `blue` / `green` / `red` / `purple`）
 
 環境変数でも上書き可能です（設定ファイルより優先）。
