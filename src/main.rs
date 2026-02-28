@@ -27,6 +27,7 @@ const HUD_CHAR_WIDTH_ESTIMATE: f64 = 9.6;
 const HUD_LINE_HEIGHT_ESTIMATE: f64 = 22.0;
 const HUD_TEXT_MEASURE_HEIGHT: f64 = 10_000.0;
 const BITMAP_IMAGE_FILE_TYPE_PNG: usize = 4;
+const PIXEL_CHANNEL_TOLERANCE: u8 = 2;
 
 struct AppState {
     last_change_count: isize,
@@ -48,6 +49,12 @@ struct HudLayoutMetrics {
     text_height: f64,
     label_y: f64,
     icon_y: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DiffSummary {
+    diff_pixels: usize,
+    total_pixels: usize,
 }
 
 static APP_STATE: Mutex<Option<AppState>> = Mutex::new(None);
@@ -186,9 +193,17 @@ fn handle_cli_flags() -> bool {
                 std::process::exit(2);
             };
 
-            if let Err(error) = generate_diff_png(&baseline_path, &current_path, &output_path) {
-                eprintln!("{error}");
-                std::process::exit(1);
+            match generate_diff_png(&baseline_path, &current_path, &output_path) {
+                Ok(summary) => {
+                    println!(
+                        "diff_pixels={} total_pixels={}",
+                        summary.diff_pixels, summary.total_pixels
+                    );
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
             }
             true
         }
@@ -250,7 +265,7 @@ fn generate_diff_png(
     baseline_path: &str,
     current_path: &str,
     output_path: &str,
-) -> Result<(), String> {
+) -> Result<DiffSummary, String> {
     unsafe {
         let baseline_path_ns = nsstring_from_str(baseline_path);
         let baseline_rep: *mut AnyObject =
@@ -284,6 +299,9 @@ fn generate_diff_png(
             return Err("failed to create diff image".to_string());
         }
 
+        let mut diff_pixels: usize = 0;
+        let total_pixels = (baseline_width * baseline_height) as usize;
+
         for x in 0..baseline_width {
             for y in 0..baseline_height {
                 let baseline_color: *mut AnyObject = msg_send![baseline_rep, colorAtX: x y: y];
@@ -300,10 +318,17 @@ fn generate_diff_png(
                     && to_u8(bb) == to_u8(cb)
                     && to_u8(ba) == to_u8(ca);
 
+                let same = same
+                    || (to_u8(br).abs_diff(to_u8(cr)) <= PIXEL_CHANNEL_TOLERANCE
+                        && to_u8(bg).abs_diff(to_u8(cg)) <= PIXEL_CHANNEL_TOLERANCE
+                        && to_u8(bb).abs_diff(to_u8(cb)) <= PIXEL_CHANNEL_TOLERANCE
+                        && to_u8(ba).abs_diff(to_u8(ca)) <= PIXEL_CHANNEL_TOLERANCE);
+
                 let color: *mut AnyObject = if same {
                     let gray = ((cr + cg + cb) / 3.0).clamp(0.0, 1.0);
                     msg_send![class!(NSColor), colorWithCalibratedRed: gray green: gray blue: gray alpha: 0.08f64]
                 } else {
+                    diff_pixels += 1;
                     let delta = (to_u8(cr).abs_diff(to_u8(br)))
                         .max(to_u8(cg).abs_diff(to_u8(bg)))
                         .max(to_u8(cb).abs_diff(to_u8(bb)));
@@ -333,8 +358,12 @@ fn generate_diff_png(
         if !success {
             return Err(format!("failed to write diff PNG: {output_path}"));
         }
+
+        Ok(DiffSummary {
+            diff_pixels,
+            total_pixels,
+        })
     }
-    Ok(())
 }
 
 unsafe fn color_components(color: *mut AnyObject) -> Option<(f64, f64, f64, f64)> {

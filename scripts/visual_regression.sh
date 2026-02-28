@@ -62,21 +62,39 @@ for i in "${!case_ids[@]}"; do
     continue
   fi
 
-  if cmp -s "$baseline" "$current"; then
+  if diff_output=$("$BIN" --diff-png --baseline "$baseline" --current "$current" --output "$diff" 2>&1); then
+    diff_pixels="$(echo "$diff_output" | sed -n 's/.*diff_pixels=\([0-9][0-9]*\).*/\1/p' | tail -n1)"
+    total_pixels="$(echo "$diff_output" | sed -n 's/.*total_pixels=\([0-9][0-9]*\).*/\1/p' | tail -n1)"
+    if [[ -z "$diff_pixels" || -z "$total_pixels" ]]; then
+      echo "ng: $id" >&2
+      echo "  baseline: $baseline" >&2
+      echo "  current : $current" >&2
+      echo "  diff    : failed to parse diff output" >&2
+      echo "  reason  : $diff_output" >&2
+      failed=1
+      continue
+    fi
+  else
+    echo "ng: $id" >&2
+    echo "  baseline: $baseline" >&2
+    echo "  current : $current" >&2
+    echo "  diff    : failed to generate" >&2
+    if [[ -n "$diff_output" ]]; then
+      echo "  reason  : $diff_output" >&2
+    fi
+    failed=1
+    continue
+  fi
+
+  if [[ "$diff_pixels" -eq 0 ]]; then
     rm -f "$diff"
     echo "ok: $id"
   else
     echo "ng: $id" >&2
     echo "  baseline: $baseline" >&2
     echo "  current : $current" >&2
-    if diff_output=$("$BIN" --diff-png --baseline "$baseline" --current "$current" --output "$diff" 2>&1); then
-      echo "  diff    : $diff" >&2
-    else
-      echo "  diff    : failed to generate" >&2
-      if [[ -n "$diff_output" ]]; then
-        echo "  reason  : $diff_output" >&2
-      fi
-    fi
+    echo "  diff    : $diff" >&2
+    echo "  pixels  : ${diff_pixels}/${total_pixels}" >&2
     failed=1
   fi
 done
