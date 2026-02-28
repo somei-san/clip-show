@@ -314,12 +314,7 @@ fn set_config_value(
                     "invalid finite f64 value for poll_interval_secs: {raw}"
                 ));
             }
-            let clamped = parse_f64_value(
-                parsed,
-                POLL_INTERVAL_SECS,
-                MIN_POLL_INTERVAL_SECS,
-                MAX_POLL_INTERVAL_SECS,
-            );
+            let clamped = parsed.clamp(MIN_POLL_INTERVAL_SECS, MAX_POLL_INTERVAL_SECS);
             config.display.poll_interval_secs = Some(clamped);
             if parsed < MIN_POLL_INTERVAL_SECS || parsed > MAX_POLL_INTERVAL_SECS {
                 return Ok(Some(format!(
@@ -337,12 +332,7 @@ fn set_config_value(
                     "invalid finite f64 value for hud_duration_secs: {raw}"
                 ));
             }
-            let clamped = parse_f64_value(
-                parsed,
-                HUD_DURATION_SECS,
-                MIN_HUD_DURATION_SECS,
-                MAX_HUD_DURATION_SECS,
-            );
+            let clamped = parsed.clamp(MIN_HUD_DURATION_SECS, MAX_HUD_DURATION_SECS);
             config.display.hud_duration_secs = Some(clamped);
             if parsed < MIN_HUD_DURATION_SECS || parsed > MAX_HUD_DURATION_SECS {
                 return Ok(Some(format!(
