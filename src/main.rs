@@ -1490,7 +1490,7 @@ fn hud_origin_for_frame(
     let max_y = frame.origin.y + (frame.size.height - height).max(0.0);
 
     let x = frame.origin.x + (frame.size.width - width) / 2.0;
-    let available_height = (frame.size.height - height).max(0.0);
+    let available_height = max_y - min_y;
     let center_y = frame.origin.y + available_height / 2.0;
     let vertical_quarter = available_height / 4.0;
     // AppKit screen coordinates increase upward. "Top" means a larger y value.
@@ -1874,17 +1874,12 @@ narrow_clamped: w=200.0 text_w=138.0 h=52.0 text_h=22.0 label_y=15.0 icon_y=15.0
         let (bottom_x, bottom_y) =
             hud_origin_for_frame(frame, hud_width, hud_height, HudPosition::Bottom);
 
-        let expected_x = frame.origin.x + (frame.size.width - hud_width) / 2.0;
-        let expected_available_height = (frame.size.height - hud_height).max(0.0);
-        let expected_center_y = frame.origin.y + expected_available_height / 2.0;
-        let expected_offset = expected_available_height / 4.0;
-
-        assert_eq!(top_x, expected_x);
-        assert_eq!(center_x, expected_x);
-        assert_eq!(bottom_x, expected_x);
-        assert_eq!(top_y, expected_center_y + expected_offset);
-        assert_eq!(center_y, expected_center_y);
-        assert_eq!(bottom_y, expected_center_y - expected_offset);
+        assert_eq!(top_x, 200.0);
+        assert_eq!(center_x, 200.0);
+        assert_eq!(bottom_x, 200.0);
+        assert_eq!(top_y, 525.0);
+        assert_eq!(center_y, 350.0);
+        assert_eq!(bottom_y, 175.0);
     }
 
     #[test]
