@@ -30,7 +30,7 @@
 ## インストール手順 （Homebrew経由）
 
 ```bash
-brew install somei-san/tools/cliip-show
+brew install somei-san/tap/cliip-show
 brew services start cliip-show
 ```
 
@@ -40,4 +40,4 @@ brew services start cliip-show
 
 ## Homebrew tap リポジトリ
 
-<https://github.com/somei-san/homebrew-tools>
+<https://github.com/somei-san/homebrew-tap>
