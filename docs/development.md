@@ -154,7 +154,9 @@ git push origin v0.1.1
 
 タグのバージョンは `Cargo.toml` の `version` と同じ値にしてください（例: `0.1.1` -> `v0.1.1`）。
 
-### 3. Formulaを生成する
+タグを push すると GitHub 上にリリース用 tarball が生成されます。次の Formula 生成で使用します。
+
+### 3. Formulaを生成してコミットする
 
 このリポジトリで以下を実行します。
 
@@ -164,10 +166,18 @@ git push origin v0.1.1
 
 バージョンは `0.1.1` のように `v` なしで指定してください（タグは内部で `v0.1.1` として参照されます）。
 
-生成された `Formula/cliip-show.rb` を [Homebrew Tapリポジトリ](https://github.com/somei-san/homebrew-tap) の `Formula/cliip-show.rb` としてコミットしてpushしてください。
+生成された `Formula/cliip-show.rb` をこのリポジトリにコミットして push してください。
 
 テンプレートは `packaging/homebrew/cliip-show.rb.template` にあります。
 
-### 4. ユーザーのインストール手順
+### 4. main にマージする
+
+PR をレビューして main にマージします。
+
+### 5. Tap リポジトリを更新する
+
+`Formula/cliip-show.rb` を [Homebrew Tapリポジトリ](https://github.com/somei-san/homebrew-tap) の `Formula/cliip-show.rb` としてコミットして push してください。
+
+### 6. ユーザーのインストール手順
 
 [TapリポジトリのREADME参照](https://github.com/somei-san/homebrew-tap/blob/main/README.md)
