@@ -81,10 +81,11 @@ cargo run
 - 既定パス: `~/Library/Application Support/cliip-show/config.toml`
 - パス変更: `CLIIP_SHOW_CONFIG_PATH=/path/to/config.toml`
 
-## ドキュメント
+### リンク
 
-- [開発者向け手順](docs/DEVELOPMENT.md)
+- [開発ガイド](docs/DEVELOPMENT.md)
+- [Homebrew Tap リポジトリ](https://github.com/somei-san/homebrew-tap)
 
-## Homebrew tap リポジトリ
+## 解説
 
-<https://github.com/somei-san/homebrew-tap>
+アプリ名は[Creepy Nutsのアルバム](https://ja.wikipedia.org/wiki/%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%97%E3%83%BB%E3%82%B7%E3%83%A7%E3%83%BC)のもじりです
