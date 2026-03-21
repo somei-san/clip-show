@@ -25,7 +25,7 @@
 
 ## HUDイメージ
 
-![cliip-show HUDの表示イメージ](docs/assets/cliip-show-hud.svg)
+![cliip-show HUDの表示イメージ](docs/assets/cliip-show-hud.gif)
 
 ## インストール手順 （Homebrew経由）
 
