@@ -1505,9 +1505,7 @@ unsafe fn create_hud_window(
     let icon_rect = NSRect {
         origin: NSPoint {
             x: dims.horizontal_padding,
-            y: ((default_height - dims.line_height_estimate) / 2.0 + dims.line_height_estimate
-                - dims.icon_height)
-                .max(dims.vertical_padding),
+            y: (default_height - dims.line_height_estimate) / 2.0,
         },
         size: NSSize {
             width: dims.icon_width,
@@ -1515,25 +1513,24 @@ unsafe fn create_hud_window(
         },
     };
 
-    let symbol_name = nsstring_from_str("list.clipboard");
-    let symbol_image: *mut AnyObject = msg_send![class!(NSImage), imageWithSystemSymbolName: symbol_name accessibilityDescription: ptr::null::<AnyObject>()];
-    let () = msg_send![symbol_name, release];
+    let icon_label: *mut AnyObject = msg_send![class!(NSTextField), alloc];
+    let icon_label: *mut AnyObject = msg_send![icon_label, initWithFrame: icon_rect];
+    let () = msg_send![icon_label, setBezeled: false];
+    let () = msg_send![icon_label, setBordered: false];
+    let () = msg_send![icon_label, setEditable: false];
+    let () = msg_send![icon_label, setSelectable: false];
+    let () = msg_send![icon_label, setDrawsBackground: false];
 
     let icon_font_size = (HUD_ICON_FONT_SIZE * clamped_scale).clamp(10.0, 44.0);
-    let symbol_config: *mut AnyObject = msg_send![
-        class!(NSImageSymbolConfiguration),
-        configurationWithPointSize: icon_font_size
-        weight: 0.0f64  // NSFontWeightRegular
-    ];
-    let configured_image: *mut AnyObject =
-        msg_send![symbol_image, imageWithSymbolConfiguration: symbol_config];
+    let system_font: *mut AnyObject =
+        msg_send![class!(NSFont), systemFontOfSize: icon_font_size];
+    if !system_font.is_null() {
+        let () = msg_send![icon_label, setFont: system_font];
+    }
 
-    let icon_label: *mut AnyObject = msg_send![class!(NSImageView), alloc];
-    let icon_label: *mut AnyObject = msg_send![icon_label, initWithFrame: icon_rect];
-    let () = msg_send![icon_label, setImage: configured_image];
-    let () = msg_send![icon_label, setImageScaling: 0isize]; // NSImageScaleNone
-    let white: *mut AnyObject = msg_send![class!(NSColor), whiteColor];
-    let () = msg_send![icon_label, setContentTintColor: white];
+    let peanut = nsstring_from_str("🥜");
+    let () = msg_send![icon_label, setStringValue: peanut];
+    let () = msg_send![peanut, release];
 
     let label_rect = NSRect {
         origin: NSPoint {
@@ -1559,6 +1556,7 @@ unsafe fn create_hud_window(
     let () = msg_send![label, setMaximumNumberOfLines: 0isize];
     let () = msg_send![label, setAlignment: 0isize];
 
+    let white: *mut AnyObject = msg_send![class!(NSColor), whiteColor];
     let () = msg_send![label, setTextColor: white];
 
     let menlo_name = nsstring_from_str("Menlo");
