@@ -130,54 +130,48 @@ MAX_DIFF_PERMILLE=80 ./scripts/visual_regression.sh
 
 ## Homebrewで公開する手順
 
-### 1. バイナリのバージョンを更新する
+タグを push すると GitHub Actions が自動で Release 作成と Homebrew tap 更新を行います。
 
-`Cargo.toml` の `package.version` をリリース対象バージョンに更新します。
-
-例: `0.1.0` から `0.1.1` に更新する
-
-```toml
-[package]
-version = "0.1.1"
-```
-
-`Cargo.toml` の更新をコミットして push してから、次の手順に進んでください。
-
-### 2. タグを作成して push する
-
-例: `v0.1.1` タグを作成して push する
+### 1. リリーススクリプトを実行する
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+./scripts/release.sh 0.2.0
 ```
 
-タグのバージョンは `Cargo.toml` の `version` と同じ値にしてください（例: `0.1.1` -> `v0.1.1`）。
+バージョンを引数で指定すると、`Cargo.toml` のバージョン更新 → コミット・push → タグ作成・push を一括で行います。
 
-タグを push すると GitHub 上にリリース用 tarball が生成されます。次の Formula 生成で使用します。
-
-### 3. Formulaを生成してコミットする
-
-このリポジトリで以下を実行します。
+引数なしで実行すると、現在の `Cargo.toml` のバージョンでタグを作成します（事前に手動でバージョンを更新済みの場合）。
 
 ```bash
-./scripts/homebrew/generate_formula.sh somei-san 0.1.1 ./Formula/cliip-show.rb
+./scripts/release.sh
 ```
 
-バージョンは `0.1.1` のように `v` なしで指定してください（タグは内部で `v0.1.1` として参照されます）。
+### 3. 自動実行される内容
 
-生成された `Formula/cliip-show.rb` をこのリポジトリにコミットして push してください。
+GitHub Actions（`.github/workflows/release.yml`）が以下を自動実行します。
 
-テンプレートは `packaging/homebrew/cliip-show.rb.template` にあります。
+1. tarball の SHA256 を算出
+2. GitHub Release を作成（リリースノート自動生成）
+3. [Homebrew Tap リポジトリ](https://github.com/somei-san/homebrew-tap)の Formula を更新
 
-### 4. main にマージする
+進捗は [Actions](https://github.com/somei-san/cliip-show/actions) で確認できます。
 
-PR をレビューして main にマージします。
+### セットアップ（初回のみ）
 
-### 5. Tap リポジトリを更新する
+リポジトリの Settings → Secrets and variables → Actions に以下のシークレットを登録してください。
 
-`Formula/cliip-show.rb` を [Homebrew Tapリポジトリ](https://github.com/somei-san/homebrew-tap) の `Formula/cliip-show.rb` としてコミットして push してください。
+| シークレット名 | 用途 |
+|---|---|
+| `HOMEBREW_TAP_TOKEN` | `somei-san/homebrew-tap` への書き込み権限を持つ Fine-grained PAT |
 
-### 6. ユーザーのインストール手順
+### ユーザーのインストール手順
 
 [TapリポジトリのREADME参照](https://github.com/somei-san/homebrew-tap/blob/main/README.md)
+
+### 手動での Formula 生成（参考）
+
+CD パイプラインを使わずに手動で Formula を生成する場合は以下を実行します。
+
+```bash
+./scripts/homebrew/generate_formula.sh somei-san 0.2.0 ./Formula/cliip-show.rb
+```
