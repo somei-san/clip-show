@@ -168,8 +168,7 @@ unsafe fn reload_config_if_changed(state: &mut AppState) {
                 let () = msg_send![layer, setBackgroundColor: cg_color];
                 let (border_white, border_alpha) =
                     hud_border_white_alpha(new_settings.hud_background_color);
-                let border_obj: *mut AnyObject =
-                    msg_send![class!(NSColor), colorWithCalibratedWhite: border_white alpha: border_alpha];
+                let border_obj: *mut AnyObject = msg_send![class!(NSColor), colorWithCalibratedWhite: border_white alpha: border_alpha];
                 let border_cg: *mut std::ffi::c_void = msg_send![border_obj, CGColor];
                 let () = msg_send![layer, setBorderColor: border_cg];
             }

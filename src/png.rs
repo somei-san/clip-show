@@ -186,8 +186,18 @@ pub fn generate_diff_png(
                         continue;
                     };
                     let same = pixel_is_same(
-                        PixelColor { r: br, g: bg, b: bb, a: ba },
-                        PixelColor { r: cr, g: cg, b: cb, a: ca },
+                        PixelColor {
+                            r: br,
+                            g: bg,
+                            b: bb,
+                            a: ba,
+                        },
+                        PixelColor {
+                            r: cr,
+                            g: cg,
+                            b: cb,
+                            a: ca,
+                        },
                     );
                     let color: *mut AnyObject = if same {
                         let gray = ((cr + cg + cb) / 3.0).clamp(0.0, 1.0);
