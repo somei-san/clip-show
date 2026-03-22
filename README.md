@@ -57,7 +57,7 @@ cliip-show --config set hud_emoji 🍣
 ```
 
 設定キー:
-- `poll_interval_secs`（既定値: `0.3`、`0.05` - `5.0`）
+- `poll_interval_secs`（既定値: `0.3`、`0.05` - `5.0`）※ 変更後は再起動が必要
 - `hud_duration_secs`（既定値: `1.0`、`0.1` - `10.0`）
 - `hud_fade_duration_secs`（既定値: `0.3`、`0.0` - `2.0`、`0.0` でフェードなし）
 - `max_chars_per_line`（既定値: `100`、`1` - `500`）
@@ -66,6 +66,8 @@ cliip-show --config set hud_emoji 🍣
 - `hud_scale`（既定値: `1.1`、`0.5` - `2.0`）
 - `hud_background_color`（既定値: `default`、`default` / `yellow` / `blue` / `green` / `red` / `purple`）
 - `hud_emoji`（既定値: `🥜`、任意の文字・絵文字）
+
+> **設定の即時反映:** `poll_interval_secs` 以外の変更は、再起動なしで自動的に反映されます。
 
 環境変数でも上書き可能です（設定ファイルより優先）。
 

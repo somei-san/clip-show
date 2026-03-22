@@ -763,9 +763,13 @@ pub fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
                 eprintln!("warning: {warning}");
             }
             println!("updated config: {}", path.display());
-            println!(
-                "hint: restart the service to apply changes: brew services restart cliip-show"
-            );
+            if key == ConfigKey::PollIntervalSecs {
+                println!(
+                    "hint: poll_interval_secs takes effect after restart: brew services restart cliip-show"
+                );
+            } else {
+                println!("hint: change will be applied automatically (no restart needed)");
+            }
             println!("[effective]");
             let effective =
                 apply_env_overrides(apply_config_file(default_display_settings(), &config));

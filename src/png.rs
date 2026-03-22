@@ -127,6 +127,7 @@ pub fn generate_diff_png(
         let current_data: *mut u8 = msg_send![current_rep, bitmapData];
         let diff_data: *mut u8 = msg_send![diff_rep, bitmapData];
         let bytes_per_row_baseline: isize = msg_send![baseline_rep, bytesPerRow];
+        let bytes_per_row_current: isize = msg_send![current_rep, bytesPerRow];
         let bytes_per_row_diff: isize = msg_send![diff_rep, bytesPerRow];
 
         if baseline_data.is_null() || current_data.is_null() || diff_data.is_null() {
@@ -162,15 +163,16 @@ pub fn generate_diff_png(
             for y in 0..baseline_height as usize {
                 for x in 0..baseline_width as usize {
                     let b_offset = y * bytes_per_row_baseline as usize + x * 4;
+                    let c_offset = y * bytes_per_row_current as usize + x * 4;
                     let d_offset = y * bytes_per_row_diff as usize + x * 4;
                     let br = *baseline_data.add(b_offset);
                     let bg = *baseline_data.add(b_offset + 1);
                     let bb = *baseline_data.add(b_offset + 2);
                     let ba = *baseline_data.add(b_offset + 3);
-                    let cr = *current_data.add(b_offset);
-                    let cg = *current_data.add(b_offset + 1);
-                    let cb = *current_data.add(b_offset + 2);
-                    let ca = *current_data.add(b_offset + 3);
+                    let cr = *current_data.add(c_offset);
+                    let cg = *current_data.add(c_offset + 1);
+                    let cb = *current_data.add(c_offset + 2);
+                    let ca = *current_data.add(c_offset + 3);
 
                     let same = br.abs_diff(cr) <= PIXEL_CHANNEL_TOLERANCE
                         && bg.abs_diff(cg) <= PIXEL_CHANNEL_TOLERANCE

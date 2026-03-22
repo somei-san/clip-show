@@ -1,12 +1,17 @@
+use std::path::PathBuf;
 use std::ptr;
 use std::sync::{Mutex, Once};
+use std::time::SystemTime;
 
 use objc2::declare::ClassBuilder;
 use objc2::runtime::{AnyClass, AnyObject, Sel};
 use objc2::{class, msg_send, sel};
 
-use crate::config::{display_settings, DisplaySettings};
-use crate::hud::{create_hud_window, layout_hud};
+use crate::config::{
+    apply_config_file, apply_env_overrides, default_display_settings, display_settings,
+    load_config_file, DisplaySettings,
+};
+use crate::hud::{create_hud_window, hud_background_rgba, hud_border_white_alpha, layout_hud};
 use crate::objc_helpers::nsstring_from_str;
 use crate::text::truncate_text;
 
@@ -23,6 +28,9 @@ pub struct AppState {
     pub fade_ticks_elapsed: u32,
     pub fade_total_ticks: u32,
     pub settings: DisplaySettings,
+    pub config_path: Option<PathBuf>,
+    pub config_mtime: Option<SystemTime>,
+    pub config_check_counter: u32,
 }
 
 // All UI interactions happen on the AppKit main thread.
@@ -64,6 +72,13 @@ extern "C" fn application_did_finish_launching(this: &AnyObject, _: Sel, _: *mut
 
         let (window, icon_label, label) = create_hud_window(settings);
 
+        // パスが解決できない場合もパスだけは保持し、後でファイルが作成されても検知できるようにする
+        let config_path = crate::config::config_file_path().ok();
+        let config_mtime = config_path
+            .as_ref()
+            .and_then(|p| std::fs::metadata(p).ok())
+            .and_then(|m| m.modified().ok());
+
         *APP_STATE.lock().expect("APP_STATE lock poisoned") = Some(AppState {
             last_change_count,
             pasteboard,
@@ -75,6 +90,9 @@ extern "C" fn application_did_finish_launching(this: &AnyObject, _: Sel, _: *mut
             fade_ticks_elapsed: 0,
             fade_total_ticks: 0,
             settings,
+            config_path,
+            config_mtime,
+            config_check_counter: 0,
         });
 
         let _: *mut AnyObject = msg_send![
@@ -88,12 +106,80 @@ extern "C" fn application_did_finish_launching(this: &AnyObject, _: Sel, _: *mut
     }
 }
 
+// poll_pasteboard が呼ばれるたびにカウントし、この回数ごとに mtime チェックを行う
+// デフォルト poll_interval_secs=0.3 × 10 = 約3秒ごと
+const CONFIG_CHECK_EVERY_N_POLLS: u32 = 10;
+
+unsafe fn reload_config_if_changed(state: &mut AppState) {
+    let Some(ref path) = state.config_path else {
+        return;
+    };
+    state.config_check_counter += 1;
+    if state.config_check_counter < CONFIG_CHECK_EVERY_N_POLLS {
+        return;
+    }
+    state.config_check_counter = 0;
+    let current_mtime = std::fs::metadata(path).ok().and_then(|m| m.modified().ok());
+    if current_mtime == state.config_mtime {
+        return;
+    }
+    let new_settings = match load_config_file(path) {
+        Ok((config, _)) => {
+            let base = default_display_settings();
+            apply_env_overrides(apply_config_file(base, &config))
+        }
+        Err(err) => {
+            eprintln!("warning: config reload failed, keeping current settings: {err}");
+            return;
+        }
+    };
+    state.config_mtime = current_mtime;
+
+    // hud_emoji が変わったらアイコンラベルを即時更新
+    if new_settings.hud_emoji != state.settings.hud_emoji {
+        let emoji = nsstring_from_str(new_settings.hud_emoji);
+        let () = msg_send![state.icon_label, setStringValue: emoji];
+        let () = msg_send![emoji, release];
+    }
+
+    // hud_background_color が変わったら背景レイヤーを即時更新
+    if new_settings.hud_background_color != state.settings.hud_background_color {
+        let content_view: *mut AnyObject = msg_send![state.window, contentView];
+        let layer: *mut AnyObject = msg_send![content_view, layer];
+        let (r, g, b, a) = hud_background_rgba(new_settings.hud_background_color);
+        let bg: *mut AnyObject =
+            msg_send![class!(NSColor), colorWithCalibratedRed: r green: g blue: b alpha: a];
+        let cg_color: *mut std::ffi::c_void = msg_send![bg, CGColor];
+        let () = msg_send![layer, setBackgroundColor: cg_color];
+        let (border_white, border_alpha) =
+            hud_border_white_alpha(new_settings.hud_background_color);
+        let border_obj: *mut AnyObject =
+            msg_send![class!(NSColor), colorWithCalibratedWhite: border_white alpha: border_alpha];
+        let border_cg: *mut std::ffi::c_void = msg_send![border_obj, CGColor];
+        let () = msg_send![layer, setBorderColor: border_cg];
+    }
+
+    let poll_changed = (new_settings.poll_interval_secs - state.settings.poll_interval_secs).abs()
+        > 1e-9;
+    state.settings = new_settings;
+
+    if poll_changed {
+        eprintln!(
+            "config reloaded (note: poll_interval_secs change takes effect after restart)"
+        );
+    } else {
+        eprintln!("config reloaded");
+    }
+}
+
 extern "C" fn poll_pasteboard(this: &AnyObject, _: Sel, _: *mut AnyObject) {
     unsafe {
         let mut guard = APP_STATE.lock().expect("APP_STATE lock poisoned");
         let Some(state) = guard.as_mut() else {
             return;
         };
+
+        reload_config_if_changed(state);
 
         let change_count: isize = msg_send![state.pasteboard, changeCount];
         if change_count == state.last_change_count {

@@ -75,6 +75,16 @@ pub fn hud_dimensions(scale: f64) -> HudDimensions {
     }
 }
 
+/// ボーダーカラーの (white, alpha) を返す。
+/// app.rs のホットリロード時にも同じ値を使うため一元管理する。
+pub fn hud_border_white_alpha(color: HudBackgroundColor) -> (f64, f64) {
+    let alpha = match color {
+        HudBackgroundColor::Default => 0.14,
+        _ => 0.2,
+    };
+    (1.0, alpha)
+}
+
 pub fn hud_background_rgba(color: HudBackgroundColor) -> (f64, f64, f64, f64) {
     match color {
         HudBackgroundColor::Default => (0.0, 0.0, 0.0, 0.78),
@@ -145,13 +155,9 @@ pub unsafe fn create_hud_window(
     ];
     let cg_color: *mut std::ffi::c_void = msg_send![bg, CGColor];
     let () = msg_send![layer, setBackgroundColor: cg_color];
-    let border_alpha = if settings.hud_background_color == HudBackgroundColor::Default {
-        0.14
-    } else {
-        0.2
-    };
+    let (border_white, border_alpha) = hud_border_white_alpha(settings.hud_background_color);
     let border_color_obj: *mut AnyObject =
-        msg_send![class!(NSColor), colorWithCalibratedWhite: 1.0f64 alpha: border_alpha];
+        msg_send![class!(NSColor), colorWithCalibratedWhite: border_white alpha: border_alpha];
     let border_color: *mut std::ffi::c_void = msg_send![border_color_obj, CGColor];
     let () = msg_send![layer, setBorderColor: border_color];
     let border_width = (HUD_BORDER_WIDTH * clamped_scale).clamp(1.0, 2.5);
