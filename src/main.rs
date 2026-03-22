@@ -157,6 +157,7 @@ struct DisplaySettings {
     hud_position: HudPosition,
     hud_scale: f64,
     hud_background_color: HudBackgroundColor,
+    hud_emoji: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -175,6 +176,7 @@ struct DisplayConfigFile {
     hud_position: Option<HudPosition>,
     hud_scale: Option<f64>,
     hud_background_color: Option<HudBackgroundColor>,
+    hud_emoji: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -187,6 +189,7 @@ enum ConfigKey {
     HudPosition,
     HudScale,
     HudBackgroundColor,
+    HudEmoji,
 }
 
 static APP_STATE: Mutex<Option<AppState>> = Mutex::new(None);
@@ -217,6 +220,7 @@ fn default_display_settings() -> DisplaySettings {
         hud_position: HudPosition::Top,
         hud_scale: DEFAULT_HUD_SCALE,
         hud_background_color: HudBackgroundColor::default(),
+        hud_emoji: "🥜",
     }
 }
 
@@ -282,6 +286,9 @@ fn apply_config_file(base: DisplaySettings, config: &AppConfigFile) -> DisplaySe
     if let Some(value) = config.display.hud_background_color {
         settings.hud_background_color = value;
     }
+    if let Some(value) = &config.display.hud_emoji {
+        settings.hud_emoji = parse_hud_emoji(value).unwrap_or(settings.hud_emoji);
+    }
     settings
 }
 
@@ -338,6 +345,9 @@ fn apply_env_overrides(base: DisplaySettings) -> DisplaySettings {
         settings.hud_background_color =
             parse_hud_background_color_setting(&value, settings.hud_background_color);
     }
+    if let Some(value) = read_env_option("CLIIP_SHOW_HUD_EMOJI") {
+        settings.hud_emoji = parse_hud_emoji(&value).unwrap_or(settings.hud_emoji);
+    }
     settings
 }
 
@@ -373,6 +383,14 @@ fn parse_hud_background_color_setting(
     default: HudBackgroundColor,
 ) -> HudBackgroundColor {
     parse_hud_background_color(raw).unwrap_or(default)
+}
+
+fn parse_hud_emoji(raw: &str) -> Option<&'static str> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(Box::leak(trimmed.to_string().into_boxed_str()))
 }
 
 fn read_env_option(name: &str) -> Option<String> {
@@ -459,6 +477,7 @@ fn parse_config_key(raw: &str) -> Option<ConfigKey> {
         "hud_position" | "hud-position" => Some(ConfigKey::HudPosition),
         "hud_scale" | "hud-scale" => Some(ConfigKey::HudScale),
         "hud_background_color" | "hud-background-color" => Some(ConfigKey::HudBackgroundColor),
+        "hud_emoji" | "hud-emoji" => Some(ConfigKey::HudEmoji),
         _ => None,
     }
 }
@@ -581,6 +600,13 @@ fn set_config_value(
             })?;
             config.display.hud_background_color = Some(parsed);
         }
+        ConfigKey::HudEmoji => {
+            let raw = value.trim();
+            if raw.is_empty() {
+                return Err("hud_emoji must not be empty".to_string());
+            }
+            config.display.hud_emoji = Some(raw.to_string());
+        }
     }
     Ok(None)
 }
@@ -600,6 +626,7 @@ fn print_effective_settings(settings: DisplaySettings) {
         "hud_background_color = {}",
         settings.hud_background_color.as_str()
     );
+    println!("hud_emoji = {}", settings.hud_emoji);
 }
 
 fn settings_to_config_file(settings: DisplaySettings) -> AppConfigFile {
@@ -613,6 +640,7 @@ fn settings_to_config_file(settings: DisplaySettings) -> AppConfigFile {
             hud_position: Some(settings.hud_position),
             hud_scale: Some(settings.hud_scale),
             hud_background_color: Some(settings.hud_background_color),
+            hud_emoji: Some(settings.hud_emoji.to_string()),
         },
     }
 }
@@ -679,6 +707,9 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
                 if let Some(value) = config.display.hud_background_color {
                     println!("hud_background_color = {}", value.as_str());
                 }
+                if let Some(value) = &config.display.hud_emoji {
+                    println!("hud_emoji = {}", value);
+                }
             } else {
                 println!("config_file = not_found");
             }
@@ -723,7 +754,7 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
             let Some(key_raw) = args.next() else {
                 eprintln!("Usage: cliip-show --config set <key> <value>");
                 eprintln!(
-                    "Available keys: poll_interval_secs, hud_duration_secs, hud_fade_duration_secs, max_chars_per_line, max_lines, hud_position, hud_scale, hud_background_color"
+                    "Available keys: poll_interval_secs, hud_duration_secs, hud_fade_duration_secs, max_chars_per_line, max_lines, hud_position, hud_scale, hud_background_color, hud_emoji"
                 );
                 std::process::exit(2);
             };
@@ -737,7 +768,7 @@ fn handle_config_command<I: Iterator<Item = String>>(args: &mut I) -> bool {
             }
             let Some(key) = parse_config_key(key_raw.trim()) else {
                 eprintln!(
-                    "Unknown key: {key_raw}. Available keys: poll_interval_secs, hud_duration_secs, hud_fade_duration_secs, max_chars_per_line, max_lines, hud_position, hud_scale, hud_background_color"
+                    "Unknown key: {key_raw}. Available keys: poll_interval_secs, hud_duration_secs, hud_fade_duration_secs, max_chars_per_line, max_lines, hud_position, hud_scale, hud_background_color, hud_emoji"
                 );
                 std::process::exit(2);
             };
@@ -841,6 +872,7 @@ fn handle_cli_flags() -> bool {
             let _ = writeln!(help, "  cliip-show --config set hud_position top");
             let _ = writeln!(help, "  cliip-show --config set hud_scale 1.2");
             let _ = writeln!(help, "  cliip-show --config set hud_background_color blue");
+            let _ = writeln!(help, "  cliip-show --config set hud_emoji 🍣");
             let _ = writeln!(help);
             let _ = writeln!(help, "Config keys:");
             let _ = writeln!(help, "  poll_interval_secs      default=0.3 (0.05 - 5.0)");
@@ -856,6 +888,10 @@ fn handle_cli_flags() -> bool {
             let _ = writeln!(
                 help,
                 "  hud_background_color    default=default (default|yellow|blue|green|red|purple)"
+            );
+            let _ = writeln!(
+                help,
+                "  hud_emoji               default=🥜 (任意の文字・絵文字)"
             );
             let _ = writeln!(help);
             let _ = writeln!(help, "For Homebrew service:");
@@ -896,6 +932,10 @@ fn handle_cli_flags() -> bool {
             let _ = writeln!(
                 help,
                 "  CLIIP_SHOW_HUD_BACKGROUND_COLOR HUD background color (default|yellow|blue|green|red|purple)"
+            );
+            let _ = writeln!(
+                help,
+                "  CLIIP_SHOW_HUD_EMOJI            HUD icon emoji (default: 🥜)"
             );
             print!("{help}");
             true
@@ -1527,9 +1567,9 @@ unsafe fn create_hud_window(
         let () = msg_send![icon_label, setFont: system_font];
     }
 
-    let peanut = nsstring_from_str("🥜");
-    let () = msg_send![icon_label, setStringValue: peanut];
-    let () = msg_send![peanut, release];
+    let emoji = nsstring_from_str(settings.hud_emoji);
+    let () = msg_send![icon_label, setStringValue: emoji];
+    let () = msg_send![emoji, release];
 
     let label_rect = NSRect {
         origin: NSPoint {
@@ -1989,6 +2029,8 @@ narrow_clamped: w=220.0 text_w=151.8 h=57.2 text_h=24.2 label_y=16.5 icon_y=16.5
             Some(ConfigKey::HudPosition)
         );
         assert_eq!(parse_config_key("hud-scale"), Some(ConfigKey::HudScale));
+        assert_eq!(parse_config_key("hud_emoji"), Some(ConfigKey::HudEmoji));
+        assert_eq!(parse_config_key("hud-emoji"), Some(ConfigKey::HudEmoji));
         assert_eq!(parse_config_key("hub_background_color"), None);
         assert_eq!(parse_config_key("hub-background-color"), None);
         assert_eq!(parse_config_key("unknown"), None);
@@ -2067,6 +2109,17 @@ narrow_clamped: w=220.0 text_w=151.8 h=57.2 text_h=24.2 label_y=16.5 icon_y=16.5
         assert!(duration_err.contains("invalid finite f64 value for hud_duration_secs"));
         assert_eq!(config.display.poll_interval_secs, None);
         assert_eq!(config.display.hud_duration_secs, None);
+    }
+
+    #[test]
+    fn set_config_value_accepts_hud_emoji() {
+        let mut config = AppConfigFile::default();
+        set_config_value(&mut config, ConfigKey::HudEmoji, "🍺").expect("set hud emoji");
+        assert_eq!(config.display.hud_emoji, Some("🍺".to_string()));
+
+        let err = set_config_value(&mut config, ConfigKey::HudEmoji, "  ")
+            .expect_err("reject empty emoji");
+        assert!(err.contains("hud_emoji must not be empty"));
     }
 
     #[test]

@@ -53,6 +53,7 @@ cliip-show --config set max_lines 3
 cliip-show --config set hud_position top
 cliip-show --config set hud_scale 1.2
 cliip-show --config set hud_background_color blue
+cliip-show --config set hud_emoji 🍣
 ```
 
 設定キー:
@@ -64,6 +65,7 @@ cliip-show --config set hud_background_color blue
 - `hud_position`（既定値: `top`、`top` / `center` / `bottom`）
 - `hud_scale`（既定値: `1.1`、`0.5` - `2.0`）
 - `hud_background_color`（既定値: `default`、`default` / `yellow` / `blue` / `green` / `red` / `purple`）
+- `hud_emoji`（既定値: `🥜`、任意の文字・絵文字）
 
 環境変数でも上書き可能です（設定ファイルより優先）。
 
@@ -74,6 +76,7 @@ CLIIP_SHOW_MAX_LINES=3 \
 CLIIP_SHOW_HUD_POSITION=top \
 CLIIP_SHOW_HUD_SCALE=1.2 \
 CLIIP_SHOW_HUD_BACKGROUND_COLOR=blue \
+CLIIP_SHOW_HUD_EMOJI=🍣 \
 cargo run
 ```
 
