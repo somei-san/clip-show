@@ -101,6 +101,13 @@ pub fn hud_background_rgba(color: HudBackgroundColor) -> (f64, f64, f64, f64) {
     }
 }
 
+/// HUD ウィンドウと2つのラベル（アイコン・テキスト）を生成して返す。
+///
+/// # Safety
+/// - AppKit のメインスレッドから呼ぶこと。
+/// - 戻り値は `alloc/init` で確保した生ポインタ。`window` は使用後に
+///   `msg_send![window, close]` で解放すること。`icon_label`・`label` は
+///   ウィンドウの contentView に追加済みのため、ウィンドウのクローズとともに解放される。
 pub unsafe fn create_hud_window(
     settings: DisplaySettings,
 ) -> (*mut AnyObject, *mut AnyObject, *mut AnyObject) {
@@ -251,6 +258,10 @@ pub unsafe fn create_hud_window(
     (window, icon_label, label)
 }
 
+/// メインスクリーンの可視領域（Dock・メニューバーを除いた矩形）を返す。
+///
+/// # Safety
+/// AppKit のメインスレッドから呼ぶこと。
 unsafe fn main_screen_visible_frame() -> Option<NSRect> {
     let screen: *mut AnyObject = msg_send![class!(NSScreen), mainScreen];
     if screen.is_null() {
@@ -289,11 +300,20 @@ pub fn hud_origin_for_frame(
     (x, y)
 }
 
+/// HUD の表示位置 (x, y) をスクリーン座標で返す。スクリーン情報が取得できない場合は `None`。
+///
+/// # Safety
+/// AppKit のメインスレッドから呼ぶこと。
 pub unsafe fn hud_origin(width: f64, height: f64, position: HudPosition) -> Option<(f64, f64)> {
     let frame = main_screen_visible_frame()?;
     Some(hud_origin_for_frame(frame, width, height, position))
 }
 
+/// ウィンドウをスクリーン上の指定位置に移動・リサイズする。
+///
+/// # Safety
+/// - `window` は有効な NSWindow インスタンスであること。
+/// - AppKit のメインスレッドから呼ぶこと。
 pub unsafe fn position_window(
     window: *mut AnyObject,
     width: f64,
@@ -309,6 +329,11 @@ pub unsafe fn position_window(
     let () = msg_send![window, setFrame: rect display: true];
 }
 
+/// テキスト内容に合わせて HUD のサイズ・位置・ラベルフレームを再計算して適用する。
+///
+/// # Safety
+/// - `window`・`icon_label`・`label` はいずれも有効な ObjC オブジェクトであること。
+/// - AppKit のメインスレッドから呼ぶこと。
 pub unsafe fn layout_hud(
     window: *mut AnyObject,
     icon_label: *mut AnyObject,
@@ -352,6 +377,11 @@ pub unsafe fn layout_hud(
     position_window(window, metrics.width, metrics.height, settings.hud_position);
 }
 
+/// NSTextField のテキスト内容を1行で表示したときの自然幅（HUD 全幅）を返す。
+///
+/// # Safety
+/// - `label` は有効な NSTextField インスタンスであること。
+/// - AppKit のメインスレッドから呼ぶこと。
 pub unsafe fn measure_text_natural_width(label: *mut AnyObject, scale: f64) -> f64 {
     let dims = hud_dimensions(scale);
     let cell: *mut AnyObject = msg_send![label, cell];
@@ -371,6 +401,11 @@ pub unsafe fn measure_text_natural_width(label: *mut AnyObject, scale: f64) -> f
     text_content_width + dims.horizontal_padding * 2.0 + dims.icon_width + dims.gap
 }
 
+/// NSTextField のテキスト内容を `text_width` 幅で折り返したときの高さを返す。
+///
+/// # Safety
+/// - `label` は有効な NSTextField インスタンスであること。
+/// - AppKit のメインスレッドから呼ぶこと。
 pub unsafe fn measure_text_height(label: *mut AnyObject, text_width: f64, scale: f64) -> f64 {
     let dims = hud_dimensions(scale);
     let cell: *mut AnyObject = msg_send![label, cell];

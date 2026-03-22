@@ -3,7 +3,7 @@ use std::ffi::{c_char, c_void, CStr};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 
-pub const UTF8_ENCODING: usize = 4;
+const UTF8_ENCODING: usize = 4;
 
 /// `&str` から NSString を生成して返す。
 ///
@@ -20,6 +20,10 @@ pub unsafe fn nsstring_from_str(value: &str) -> *mut AnyObject {
     ]
 }
 
+/// NSString ポインタを Rust の `String` に変換して返す。`value` が null の場合は `None`。
+///
+/// # Safety
+/// `value` は有効な NSString インスタンスか null ポインタであること。
 pub unsafe fn nsstring_to_string(value: *mut AnyObject) -> Option<String> {
     if value.is_null() {
         return None;
