@@ -22,6 +22,11 @@ pub fn render_hud_png(text: &str, output_path: &str) -> Result<(), AppError> {
         let _app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
         let settings = display_settings();
         let (window, icon_label, label) = create_hud_window(settings);
+        if window.is_null() {
+            return Err(AppError::RenderFailed(
+                "failed to create HUD window".to_string(),
+            ));
+        }
         let truncated = truncate_text(
             text,
             settings.truncate_max_width,
@@ -34,18 +39,20 @@ pub fn render_hud_png(text: &str, output_path: &str) -> Result<(), AppError> {
 
         let content_view: *mut AnyObject = msg_send![window, contentView];
         if content_view.is_null() {
+            let () = msg_send![window, close];
             return Err(AppError::RenderFailed(
                 "failed to get contentView".to_string(),
             ));
         }
 
         let bounds: NSRect = msg_send![content_view, bounds];
-        let bitmap = create_bitmap_rep_for_bounds(bounds)?;
-        if bitmap.is_null() {
-            return Err(AppError::RenderFailed(
-                "failed to create bitmap image rep".to_string(),
-            ));
-        }
+        let bitmap = match create_bitmap_rep_for_bounds(bounds) {
+            Ok(b) => b,
+            Err(e) => {
+                let () = msg_send![window, close];
+                return Err(e);
+            }
+        };
 
         let () = msg_send![content_view, cacheDisplayInRect: bounds toBitmapImageRep: bitmap];
         let properties: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
@@ -55,6 +62,8 @@ pub fn render_hud_png(text: &str, output_path: &str) -> Result<(), AppError> {
             properties: properties
         ];
         if data.is_null() {
+            let () = msg_send![bitmap, release];
+            let () = msg_send![window, close];
             return Err(AppError::RenderFailed(
                 "failed to encode PNG data".to_string(),
             ));
@@ -63,6 +72,7 @@ pub fn render_hud_png(text: &str, output_path: &str) -> Result<(), AppError> {
         let output_path_ns = nsstring_from_str(output_path);
         let success: bool = msg_send![data, writeToFile: output_path_ns atomically: true];
         let () = msg_send![output_path_ns, release];
+        let () = msg_send![bitmap, release];
         let () = msg_send![window, close];
 
         if !success {
@@ -130,12 +140,21 @@ pub fn generate_diff_png(
         let bytes_per_row_current: isize = msg_send![current_rep, bytesPerRow];
         let bytes_per_row_diff: isize = msg_send![diff_rep, bytesPerRow];
 
+        if bytes_per_row_baseline <= 0 || bytes_per_row_current <= 0 || bytes_per_row_diff <= 0 {
+            let () = msg_send![diff_rep, release];
+            return Err(AppError::RenderFailed(
+                "bitmap bytesPerRow must be positive".to_string(),
+            ));
+        }
+        let bytes_per_row_baseline = bytes_per_row_baseline as usize;
+        let bytes_per_row_current = bytes_per_row_current as usize;
+        let bytes_per_row_diff = bytes_per_row_diff as usize;
+
         if baseline_data.is_null() || current_data.is_null() || diff_data.is_null() {
             // bitmapData が取れない場合は ObjC API にフォールバック
             for x in 0..baseline_width {
                 for y in 0..baseline_height {
-                    let baseline_color: *mut AnyObject =
-                        msg_send![baseline_rep, colorAtX: x y: y];
+                    let baseline_color: *mut AnyObject = msg_send![baseline_rep, colorAtX: x y: y];
                     let current_color: *mut AnyObject = msg_send![current_rep, colorAtX: x y: y];
                     let Some((br, bg, bb, ba)) = color_components(baseline_color) else {
                         continue;
@@ -162,9 +181,9 @@ pub fn generate_diff_png(
             // 直接バッファ操作: RGBA 8bpp を仮定（create_bitmap_rep_for_bounds と同じ設定）
             for y in 0..baseline_height as usize {
                 for x in 0..baseline_width as usize {
-                    let b_offset = y * bytes_per_row_baseline as usize + x * 4;
-                    let c_offset = y * bytes_per_row_current as usize + x * 4;
-                    let d_offset = y * bytes_per_row_diff as usize + x * 4;
+                    let b_offset = y * bytes_per_row_baseline + x * 4;
+                    let c_offset = y * bytes_per_row_current + x * 4;
+                    let d_offset = y * bytes_per_row_diff + x * 4;
                     let br = *baseline_data.add(b_offset);
                     let bg = *baseline_data.add(b_offset + 1);
                     let bb = *baseline_data.add(b_offset + 2);

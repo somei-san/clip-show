@@ -71,6 +71,7 @@ extern "C" fn application_did_finish_launching(this: &AnyObject, _: Sel, _: *mut
         let last_change_count: isize = msg_send![pasteboard, changeCount];
 
         let (window, icon_label, label) = create_hud_window(settings);
+        assert!(!window.is_null(), "HUD ウィンドウの作成に失敗しました");
 
         // パスが解決できない場合もパスだけは保持し、後でファイルが作成されても検知できるようにする
         let config_path = crate::config::config_file_path().ok();
@@ -159,14 +160,12 @@ unsafe fn reload_config_if_changed(state: &mut AppState) {
         let () = msg_send![layer, setBorderColor: border_cg];
     }
 
-    let poll_changed = (new_settings.poll_interval_secs - state.settings.poll_interval_secs).abs()
-        > 1e-9;
+    let poll_changed =
+        (new_settings.poll_interval_secs - state.settings.poll_interval_secs).abs() > 1e-9;
     state.settings = new_settings;
 
     if poll_changed {
-        eprintln!(
-            "config reloaded (note: poll_interval_secs change takes effect after restart)"
-        );
+        eprintln!("config reloaded (note: poll_interval_secs change takes effect after restart)");
     } else {
         eprintln!("config reloaded");
     }
