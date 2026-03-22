@@ -5,6 +5,11 @@ use objc2::{class, msg_send};
 
 pub const UTF8_ENCODING: usize = 4;
 
+/// `&str` から NSString を生成して返す。
+///
+/// # Safety
+/// 返されたポインタは `alloc/init` で手動管理されるため、
+/// 呼び出し側が `msg_send![ptr, release]` で解放する責任を持つ。
 pub unsafe fn nsstring_from_str(value: &str) -> *mut AnyObject {
     let ns_string: *mut AnyObject = msg_send![class!(NSString), alloc];
     msg_send![

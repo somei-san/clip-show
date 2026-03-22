@@ -14,6 +14,11 @@ pub const BORDERLESS_MASK: usize = 0;
 pub const BACKING_BUFFERED: isize = 2;
 pub const FLOATING_WINDOW_LEVEL: isize = 3;
 
+// NSLineBreakMode
+const NS_LINE_BREAK_BY_WORD_WRAPPING: isize = 1;
+// NSTextAlignment
+const NS_TEXT_ALIGNMENT_LEFT: isize = 0;
+
 const HUD_MIN_WIDTH: f64 = 200.0;
 const HUD_MAX_WIDTH: f64 = 820.0;
 const HUD_MIN_HEIGHT: f64 = 52.0;
@@ -211,10 +216,10 @@ pub unsafe fn create_hud_window(
     let () = msg_send![label, setEditable: false];
     let () = msg_send![label, setSelectable: false];
     let () = msg_send![label, setDrawsBackground: false];
-    let () = msg_send![label, setLineBreakMode: 1isize];
+    let () = msg_send![label, setLineBreakMode: NS_LINE_BREAK_BY_WORD_WRAPPING];
     let () = msg_send![label, setUsesSingleLineMode: false];
     let () = msg_send![label, setMaximumNumberOfLines: 0isize];
-    let () = msg_send![label, setAlignment: 0isize];
+    let () = msg_send![label, setAlignment: NS_TEXT_ALIGNMENT_LEFT];
 
     let white: *mut AnyObject = msg_send![class!(NSColor), whiteColor];
     let () = msg_send![label, setTextColor: white];
@@ -232,7 +237,7 @@ pub unsafe fn create_hud_window(
     if !cell.is_null() {
         let () = msg_send![cell, setWraps: true];
         let () = msg_send![cell, setScrollable: false];
-        let () = msg_send![cell, setLineBreakMode: 1isize];
+        let () = msg_send![cell, setLineBreakMode: NS_LINE_BREAK_BY_WORD_WRAPPING];
     }
 
     let default_text = nsstring_from_str("Clipboard text");
